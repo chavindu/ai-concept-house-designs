@@ -1,105 +1,58 @@
 import { Header } from "@/components/header"
 import { DesignGenerator } from "@/components/design-generator"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ArrowRight, Users, Zap, Shield } from "lucide-react"
+import { CommunityGallery } from "@/components/community-gallery"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-12 space-y-16">
-        {/* Hero Section */}
-        <section className="text-center space-y-6 py-12">
-          <h1 className="text-4xl md:text-6xl font-bold text-balance">
-            The fastest and most powerful
-            <br />
-            <span className="text-primary">platform for building AI house designs</span>
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
-            Generate stunning architectural concepts powered by advanced AI. Transform your ideas into professional
-            house designs in seconds.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" className="px-8">
-              Start Designing
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="lg">
-              View Gallery
-            </Button>
-          </div>
-        </section>
+      <main className="container mx-auto px-4 py-6">
+        {/* Main Design Interface */}
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+          {/* Left: Canvas Area */}
+          <div className="order-2 lg:order-1 space-y-4">
+            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-muted-foreground/10 rounded-lg mx-auto flex items-center justify-center">
+                  <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-muted-foreground">Your generated design will appear here</p>
+              </div>
+            </div>
 
-        {/* Design Generator Section */}
-        <section className="space-y-8">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Create Your Dream House</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Use our AI-powered design generator to create stunning architectural concepts. Simply describe your vision
-              and watch it come to life.
-            </p>
+            {/* Perspective Buttons */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">
+                Front (1 point)
+              </button>
+              <button className="px-4 py-2 bg-muted text-muted-foreground rounded-md text-sm font-medium hover:bg-muted/80">
+                Front-left (1 point)
+              </button>
+              <button className="px-4 py-2 bg-muted text-muted-foreground rounded-md text-sm font-medium hover:bg-muted/80">
+                Front-right (1 point)
+              </button>
+              <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80">
+                Regenerate (1 point)
+              </button>
+            </div>
           </div>
 
-          <Card className="p-8">
+          {/* Right: Input Parameters */}
+          <div className="order-1 lg:order-2">
             <DesignGenerator />
-          </Card>
-        </section>
-
-        {/* Features Section */}
-        <section className="space-y-8">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Why Choose Architecture.lk</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Professional architectural visualization made accessible to everyone
-            </p>
           </div>
+        </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Zap className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Lightning Fast</h3>
-              <p className="text-muted-foreground">
-                Generate professional house designs in seconds, not weeks. Our AI processes your requirements instantly.
-              </p>
-            </Card>
-
-            <Card className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Expert Consultation</h3>
-              <p className="text-muted-foreground">
-                Connect with certified architects for professional guidance and detailed project development.
-              </p>
-            </Card>
-
-            <Card className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Sri Lankan Standards</h3>
-              <p className="text-muted-foreground">
-                All designs comply with local building codes and architectural standards specific to Sri Lanka.
-              </p>
-            </Card>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="text-center space-y-6 py-12">
-          <h2 className="text-3xl font-bold">Ready to Design Your Dream House?</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Join thousands of homeowners who have brought their architectural visions to life
-          </p>
-          <Button size="lg" className="px-8">
-            Get Started Today
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </section>
+        {/* Community Gallery */}
+        <CommunityGallery />
       </main>
     </div>
   )
