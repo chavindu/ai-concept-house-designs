@@ -25,11 +25,15 @@ interface DesignFormData {
 }
 
 export function generatePrompt(formData: DesignFormData): string {
+  console.log("🎨 Generating prompt for form data:", formData)
+  
   const styleTemplate = architecturalStyleTemplates[formData.style]
 
   if (!styleTemplate) {
     throw new Error(`Unknown architectural style: ${formData.style}`)
   }
+
+  console.log("📋 Using style template:", styleTemplate.styleName)
 
   // Convert land size to perches for consistency
   let landSizeInPerches = formData.landSize
@@ -100,6 +104,9 @@ Creative Direction & Variations:
 ${styleTemplate.creativeDirection}
 `.trim()
 
+  console.log("📝 Generated prompt:", prompt)
+  console.log("📏 Prompt length:", prompt.length, "characters")
+  
   return prompt
 }
 

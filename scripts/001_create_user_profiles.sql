@@ -1,33 +1,36 @@
 -- Create user profiles table
-create table if not exists public.profiles (
+create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
+  first_name text,
+  last_name text,
   email text,
   avatar_url text,
-  points integer default 100,
+  points integer default 10, -- Free users get 10 lifetime points
+  daily_points_claimed date, -- Track when user last claimed daily points
+  language_preference text default 'en' check (language_preference in ('en', 'si')),
   role text default 'user' check (role in ('user', 'admin', 'superadmin')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Enable RLS
-alter table public.profiles enable row level security;
+alter table public.user_profiles enable row level security;
 
 -- Create policies
-create policy "profiles_select_own"
-  on public.profiles for select
+create policy "user_profiles_select_own"
+  on public.user_profiles for select
   using (auth.uid() = id);
 
-create policy "profiles_insert_own"
-  on public.profiles for insert
+create policy "user_profiles_insert_own"
+  on public.user_profiles for insert
   with check (auth.uid() = id);
 
-create policy "profiles_update_own"
-  on public.profiles for update
+create policy "user_profiles_update_own"
+  on public.user_profiles for update
   using (auth.uid() = id);
 
-create policy "profiles_delete_own"
-  on public.profiles for delete
+create policy "user_profiles_delete_own"
+  on public.user_profiles for delete
   using (auth.uid() = id);
 
 -- Create function to handle new user registration
@@ -38,12 +41,13 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, email, points)
+  insert into public.user_profiles (id, first_name, last_name, email, points)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'first_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'last_name', ''),
     new.email,
-    100
+    10 -- Free users get 10 lifetime points
   )
   on conflict (id) do nothing;
 

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Sparkles, Wand2, Download, Share2, Lock, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { useDesign } from "@/lib/design-context"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 const architecturalStyles = [
@@ -116,10 +117,12 @@ export function DesignGenerator() {
   const [perspective, setPerspective] = useState("front")
 
   // App state
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedImage, setGeneratedImage] = useState<string>("")
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Use shared design context
+  const { isGenerating, setIsGenerating, setGeneratedDesign } = useDesign()
 
   const router = useRouter()
   const supabase = createClient()
@@ -211,27 +214,118 @@ export function DesignGenerator() {
     }
 
     try {
+      console.log("🚀 Starting design generation...")
+      console.log("Form data:", formData)
+      setError(null) // Clear any previous errors
+
+      // Get the session token
+      console.log("🔍 Checking session...")
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log("✅ Session check completed")
+      console.log("Session exists:", !!session)
+      console.log("Access token exists:", !!session?.access_token)
+      console.log("Access token preview:", session?.access_token ? `${session.access_token.substring(0, 20)}...` : "NO TOKEN")
+      
+      if (!session?.access_token) {
+        console.log("❌ No session found, redirecting to login")
+        router.push("/auth/login")
+        return
+      }
+
+      console.log("📤 Sending request to API...")
+      
+      // Create an AbortController for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        console.log("⏰ Request timed out after 120 seconds")
+      }, 120000) // 2 minutes timeout
+      
+      console.log("📤 Making API call to /api/generate-design")
+      console.log("🔑 Using token:", session.access_token.substring(0, 20) + "...")
+      console.log("📋 Sending form data:", formData)
+      
       const response = await fetch("/api/generate-design", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(formData),
+        signal: controller.signal,
       })
+      
+      // Clear the timeout if request completes
+      clearTimeout(timeoutId)
+
+      console.log("📥 Response received:", response.status, response.statusText)
 
       if (response.ok) {
         const result = await response.json()
-        setGeneratedImage(result.imageUrl || "/ai-generated-house-design-concept.jpg")
+        console.log("✅ Success response:", result)
+        
+        // Update shared design context
+        setGeneratedDesign({
+          imageUrl: result.imageUrl || "/ai-generated-house-design-concept.jpg",
+          thumbnailUrl: result.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
+          descriptionEn: result.descriptionEn || "A beautiful architectural design generated with AI",
+          descriptionSi: result.descriptionSi || "AI භාවිතයෙන් ජනනය කරන ලද අලංකාර ගෘහ නිර්මාණයක්",
+          isWatermarked: result.isWatermarked || false,
+          prompt: result.prompt || "Mock prompt",
+          designId: result.designId,
+          remainingPoints: result.remainingPoints || 0,
+        })
+        
+        // Auto-scroll to the canvas area
+        setTimeout(() => {
+          const canvasElement = document.getElementById('design-canvas')
+          if (canvasElement) {
+            canvasElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }, 100)
+      } else {
+        const errorData = await response.json()
+        console.error("❌ Error response:", errorData)
+        setError(errorData.error || "Generation failed. Please try again.")
+        // Auto-scroll to error message
+        setTimeout(() => {
+          const errorElement = document.getElementById('error-display')
+          if (errorElement) {
+            errorElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }, 100)
       }
     } catch (error) {
-      console.error("Generation failed:", error)
-      // Fallback for demo
+      console.error("❌ Generation failed:", error)
+      console.error("Error details:", error)
+      console.error("Error message:", error instanceof Error ? error.message : String(error))
+      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        setError("Generation timed out after 2 minutes. Please try again.")
+      } else {
+        setError(`Generation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      }
+      // Auto-scroll to error message
       setTimeout(() => {
-        setGeneratedImage("/ai-generated-house-design-concept.jpg")
-      }, 2000)
+        const errorElement = document.getElementById('error-display')
+        if (errorElement) {
+          errorElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          })
+        }
+      }, 100)
+    } finally {
+      console.log("🏁 Design generation process completed")
+      setIsGenerating(false)
     }
-
-    setIsGenerating(false)
   }
 
   const currentStyle = architecturalStyles[styleIndex]
@@ -512,6 +606,16 @@ export function DesignGenerator() {
         </Button>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <Card id="error-display" className="p-4 border-destructive bg-destructive/10">
+          <div className="flex items-center gap-2 text-destructive">
+            <div className="w-2 h-2 bg-destructive rounded-full"></div>
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        </Card>
+      )}
+
       {/* Login Prompt for Non-Authenticated Users */}
       {!user && !loading && (
         <Card className="p-6 text-center space-y-4 bg-muted/50">
@@ -531,33 +635,6 @@ export function DesignGenerator() {
         </Card>
       )}
 
-      {/* Generated Result */}
-      {generatedImage && (
-        <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Your Generated Design</h3>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button variant="outline" size="sm">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-            </div>
-          </div>
-          <img
-            src={generatedImage || "/placeholder.svg"}
-            alt="Generated house design"
-            className="w-full rounded-lg border"
-          />
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Style: {architecturalStyles.find((s) => s.id === selectedStyle)?.name || "Custom"}</span>
-            <span>Generated with AI</span>
-          </div>
-        </Card>
-      )}
     </div>
   )
 }

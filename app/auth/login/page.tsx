@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -23,15 +24,37 @@ export default function LoginPage() {
     const supabase = createClient()
     setIsLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting login with:", email)
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
-      router.push("/dashboard")
+      
+      console.log("Login result:", { data, error })
+      
+      if (error) {
+        console.error("Login error:", error)
+        throw error
+      }
+      
+      if (data.user) {
+        console.log("Login successful, redirecting to home")
+        setSuccess("Login successful! Redirecting...")
+        
+        // Small delay to show success message
+        setTimeout(() => {
+          router.push("/")
+          router.refresh() // Force refresh to update auth state
+        }, 1000)
+      } else {
+        throw new Error("No user data returned")
+      }
     } catch (error: unknown) {
+      console.error("Login failed:", error)
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsLoading(false)
@@ -70,6 +93,7 @@ export default function LoginPage() {
                 />
               </div>
               {error && <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{error}</div>}
+              {success && <div className="text-sm text-green-500 bg-green-50 p-3 rounded-md">{success}</div>}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>

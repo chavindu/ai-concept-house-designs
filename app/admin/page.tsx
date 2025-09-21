@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building, ImageIcon, CreditCard, TrendingUp, AlertTriangle } from "lucide-react"
+import { AIServiceTester } from "@/components/ai-service-tester"
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -194,6 +195,11 @@ export default async function AdminDashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* AI Service Tester */}
+        <div className="mt-6">
+          <AIServiceTester />
         </div>
 
         {/* System Alerts */}

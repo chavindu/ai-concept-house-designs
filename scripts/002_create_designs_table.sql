@@ -5,9 +5,17 @@ create table if not exists public.designs (
   title text,
   prompt text not null,
   style text,
+  building_type text,
+  specifications jsonb, -- Store all form parameters
   image_url text,
+  thumbnail_url text,
+  description_en text, -- Bilingual description
+  description_si text, -- Sinhala description
   is_public boolean default false,
-  points_cost integer default 10,
+  is_watermarked boolean default false, -- For free credit generations
+  status text default 'generating' check (status in ('generating', 'completed', 'failed')),
+  points_cost integer default 1, -- 1 point per generation as per spec
+  perspective text default 'front',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
