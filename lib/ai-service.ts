@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { uploadImageToBlob, uploadThumbnailToBlob, extractMimeTypeFromDataUrl } from "./blob-service"
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
@@ -220,15 +221,39 @@ async function generateArchitecturalImage(prompt: string): Promise<{imageUrl: st
           console.log("-".repeat(40))
           
           // Create a data URL for the image
-          const imageUrl = `data:${mimeType};base64,${imageData}`
+          const dataUrl = `data:${mimeType};base64,${imageData}`
           
           console.log("\n✅ IMAGE GENERATION SUCCESSFUL!")
-          console.log("Base64 URL length:", imageUrl.length)
-          console.log("Base64 URL preview:", imageUrl.substring(0, 100) + "...")
+          console.log("Base64 URL length:", dataUrl.length)
+          console.log("Base64 URL preview:", dataUrl.substring(0, 100) + "...")
           
-          return {
-            imageUrl,
-            thumbnailUrl: imageUrl // For now, use the same image as thumbnail
+          // Upload to Vercel Blob
+          console.log("\n🔄 STEP 7: Uploading image to Vercel Blob...")
+          console.log("-".repeat(60))
+          
+          try {
+            const blobResult = await uploadImageToBlob(dataUrl, mimeType, 'designs')
+            console.log("✅ Image uploaded to Vercel Blob successfully")
+            console.log("🔗 Blob URL:", blobResult.url)
+            
+            // Upload thumbnail (for now, same image)
+            const thumbnailResult = await uploadThumbnailToBlob(dataUrl, mimeType, 'thumbnails')
+            console.log("✅ Thumbnail uploaded to Vercel Blob successfully")
+            console.log("🔗 Thumbnail URL:", thumbnailResult.url)
+            
+            return {
+              imageUrl: blobResult.url,
+              thumbnailUrl: thumbnailResult.url
+            }
+          } catch (blobError) {
+            console.error("❌ Failed to upload to Vercel Blob:", blobError)
+            console.log("🔄 Falling back to base64 storage...")
+            
+            // Fallback to base64 if blob upload fails
+            return {
+              imageUrl: dataUrl,
+              thumbnailUrl: dataUrl
+            }
           }
         }
       }

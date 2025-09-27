@@ -1,7 +1,8 @@
 "use client"
 
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/client"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,34 +10,79 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Coins, Download, Share2, Eye, Calendar, CreditCard, Sparkles } from "lucide-react"
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
+export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [designs, setDesigns] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || !user) {
-    redirect("/auth/login")
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser()
+        
+        if (error || !user) {
+          redirect("/auth/login")
+          return
+        }
+
+        setUser(user)
+
+        // Get user profile
+        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+        setProfile(profileData)
+
+        // Get user designs
+        const { data: designsData } = await supabase
+          .from("designs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+
+        setDesigns(designsData || [])
+
+        // Get recent points transactions
+        const { data: transactionsData } = await supabase
+          .from("points_transactions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(10)
+
+        setTransactions(transactionsData || [])
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+        redirect("/auth/login")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [supabase])
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Sparkles className="h-8 w-8 mx-auto animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // Get user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-  // Get user designs
-  const { data: designs } = await supabase
-    .from("designs")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-
-  // Get recent points transactions
-  const { data: transactions } = await supabase
-    .from("points_transactions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(10)
+  if (!user) {
+    redirect("/auth/login")
+    return null
+  }
 
   const userInitials =
     profile?.full_name
@@ -140,58 +186,129 @@ export default async function DashboardPage() {
           <TabsContent value="designs" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Your Generated Designs</h2>
-              <Button onClick={() => (window.location.href = "/")}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate New Design
+              <Button asChild>
+                <a href="/">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate New Design
+                </a>
               </Button>
             </div>
 
             {designs && designs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-4">
                 {designs.map((design) => (
                   <Card key={design.id} className="overflow-hidden">
-                    <div className="aspect-video bg-muted">
-                      {design.image_url ? (
-                        <img
-                          src={design.image_url || "/placeholder.svg"}
-                          alt={design.title || "Generated design"}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          <Sparkles className="h-8 w-8" />
-                        </div>
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-semibold truncate">{design.title || "Untitled Design"}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{design.prompt}</p>
-                        </div>
-                        {design.is_public && (
-                          <Badge variant="secondary" className="ml-2">
-                            Public
-                          </Badge>
+                    <div className="flex flex-col md:flex-row">
+                      {/* Image Preview */}
+                      <div className="md:w-64 md:h-48 w-full h-48 bg-muted flex-shrink-0">
+                        {design.image_url ? (
+                          <img
+                            src={design.image_url || "/placeholder.svg"}
+                            alt={design.title || "Generated design"}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            <Sparkles className="h-8 w-8" />
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{design.style || "Custom"}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(design.created_at).toLocaleDateString()}
-                          </span>
+                      
+                      {/* Content */}
+                      <div className="flex-1 p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold mb-1">
+                              {design.title || "Untitled Design"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                              {design.prompt}
+                            </p>
+                            <div className="flex items-center gap-2 mb-3">
+                              <Badge variant="outline">{design.style || "Custom"}</Badge>
+                              <Badge variant="outline">{design.building_type || "Residential"}</Badge>
+                              {design.is_watermarked && (
+                                <Badge variant="secondary">Watermarked</Badge>
+                              )}
+                              {design.is_public && (
+                                <Badge variant="default">Public</Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost">
-                            <Download className="h-4 w-4" />
+                        
+                        {/* Configuration Details */}
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Generated:</span>
+                            <p className="font-medium">
+                              {new Date(design.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Perspective:</span>
+                            <p className="font-medium capitalize">{design.perspective || "Front"}</p>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              if (design.image_url) {
+                                const link = document.createElement('a');
+                                link.href = design.image_url;
+                                link.download = `${design.title || 'design'}-${design.id}.png`;
+                                link.click();
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
                           </Button>
-                          <Button size="sm" variant="ghost">
-                            <Share2 className="h-4 w-4" />
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: design.title || 'Generated Design',
+                                  text: design.description_en || design.prompt,
+                                  url: window.location.href
+                                });
+                              } else {
+                                // Fallback to copying to clipboard
+                                navigator.clipboard.writeText(window.location.href);
+                                alert('Link copied to clipboard!');
+                              }
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              // Toggle public status
+                              // This would need to be implemented with a server action
+                              alert('Share to community feature coming soon!');
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            {design.is_public ? 'Remove from Gallery' : 'Add to Gallery'}
                           </Button>
                         </div>
                       </div>
-                    </CardContent>
+                    </div>
                   </Card>
                 ))}
               </div>
@@ -200,7 +317,9 @@ export default async function DashboardPage() {
                 <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No designs yet</h3>
                 <p className="text-muted-foreground mb-4">Start creating amazing house designs with AI</p>
-                <Button onClick={() => (window.location.href = "/")}>Generate Your First Design</Button>
+                <Button asChild>
+                  <a href="/">Generate Your First Design</a>
+                </Button>
               </Card>
             )}
           </TabsContent>
