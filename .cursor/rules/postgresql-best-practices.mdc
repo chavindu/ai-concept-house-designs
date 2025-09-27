@@ -1,0 +1,11 @@
+---
+name: postgresql-best-practices.mdc
+description: Best practices for PostgreSQL database management
+globs: **/*.sql
+---
+
+- Use proper indexing to optimize query performance.
+- Implement foreign keys to maintain data integrity.
+- Regularly back up your database and test restore procedures.
+- Use transactions for operations that involve multiple steps to ensure data consistency.
+- Monitor query performance and optimize slow queries.

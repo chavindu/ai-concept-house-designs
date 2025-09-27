@@ -1,0 +1,11 @@
+---
+name: typescript-best-practices.mdc 
+description: TypeScript coding standards and type safety guidelines
+globs: **/*.{ts,tsx}
+---
+
+- Enable strict mode for better type safety and error detection.
+- Prefer using interfaces over type aliases for object shapes.
+- Utilize generics to create reusable components and functions.
+- Implement type guards to ensure type safety in conditional logic.
+- Use enums for fixed sets of values to improve code readability.

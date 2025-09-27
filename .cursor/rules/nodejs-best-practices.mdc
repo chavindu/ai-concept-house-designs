@@ -1,0 +1,11 @@
+---
+name: nodejs-best-practices.mdc
+description: Best practices for Node.js and Express applications
+globs: **/*.{js,ts}
+---
+
+- Use environment variables for configuration and sensitive data management.
+- Implement middleware for error handling and request logging.
+- Structure your application using MVC or similar patterns for better organization.
+- Use async/await for handling asynchronous operations to improve readability.
+- Validate user input to prevent security vulnerabilities.

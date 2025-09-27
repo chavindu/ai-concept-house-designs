@@ -1,0 +1,11 @@
+---
+name: payment-integration-best-practices.mdc
+description: Best practices for integrating payment systems
+globs: **/*.{ts,js}
+---
+
+- Use secure payment gateways and ensure PCI compliance.
+- Implement webhooks for real-time payment status updates.
+- Validate payment data on the server-side to prevent tampering.
+- Provide clear user feedback during the payment process to enhance user experience.
+- Log payment transactions for auditing and troubleshooting purposes.

@@ -1,0 +1,11 @@
+---
+name: ai-integration-best-practices.mdc
+description: Best practices for integrating AI services
+globs: **/*.{ts,js}
+---
+
+- Implement error handling for API calls to the AI service to manage failures gracefully.
+- Cache AI responses where applicable to reduce redundant calls and improve performance.
+- Use asynchronous processing for AI tasks to avoid blocking the main thread.
+- Ensure data privacy and compliance when handling user inputs for AI generation.
+- Monitor AI service usage and performance to optimize costs and efficiency.

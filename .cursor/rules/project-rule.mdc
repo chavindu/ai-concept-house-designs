@@ -1,0 +1,141 @@
+---
+alwaysApply: true
+---
+## 2. Naming Conventions
+- Use lowercase with dash separators for directories and files (e.g., `components/ui/button.tsx`).
+- Favor **named exports** for components and functions.
+- Boolean variables start with auxiliary verbs: `is`, `has`, `does`, `should`.
+- Use PascalCase for component names and interfaces.
+
+---
+
+## 3. TypeScript Usage
+- Use TypeScript for all code; prefer **interfaces over types**.
+- Avoid enums; use maps or lookup objects.
+- Apply **RORO pattern** (Receive an Object, Return an Object) for function parameters and outputs.
+- Use strict typing for AI inputs, user profiles, payments, and designs.
+- Define interfaces for all API responses and data structures.
+
+---
+
+## 4. React & Next.js
+- Use **functional components** with TypeScript interfaces.
+- Declarative JSX only; avoid inline logic in the render function.
+- Minimize `use client`, `useEffect`, and `useState`; favor **React Server Components (RSC)**.
+- Wrap client components in `Suspense` with fallback loaders.
+- Use dynamic imports for non-critical or heavy components.
+- Implement **mobile-first responsive design** with Tailwind CSS.
+- Use Next.js 14 App Router with proper route structure.
+
+---
+
+## 5. AI & Image Generation
+- Use Google **Gemini 2.5 Flash** (`gemini-2.5-flash-image-preview`) for image generation.
+- Validate all input parameters (building type, style, floors, dimensions) before sending to AI.
+- Currently using **base64 data URLs** for image storage (placeholder implementation).
+- Handle AI failures gracefully:
+  - 60s timeout for image generation
+  - 30s timeout for description generation
+  - Return error text as data URL on failure
+  - Comprehensive logging for debugging
+- Watermark images generated with free points (users with ≤10 points).
+- Generate bilingual descriptions (English & Sinhala) automatically.
+- Rate limiting: 20 generations per hour per user.
+- Use server-side API routes for AI requests.
+
+---
+
+## 6. Payments & Points
+- Points: 1 per generation; currently implemented packages:
+  - Free users: 10 lifetime points + 2 daily refresh
+  - Paid packages: 5, 10, 25 points (configurable pricing)
+- Validate point balance on server side before generation.
+- Integrate with **PayHere API** for payments (LKR, INR, USD).
+- Use webhook for payment confirmation and instant point crediting.
+- Record all point transactions in `points_transactions` table.
+- Daily points refresh at Sri Lanka midnight.
+
+---
+
+## 7. Supabase & Database
+- Use Supabase for:
+  - User authentication and profiles
+  - Design storage and management
+  - Points tracking and transactions
+  - Payment records
+  - Architect profiles and bookings
+- Implement RLS policies for data access control.
+- Validate user roles (Superadmin, Admin, User) in server actions.
+- Use Supabase client/server pattern for different environments.
+
+---
+
+## 8. Error Handling & Validation
+- Use **early returns** for errors; avoid deeply nested conditionals.
+- Implement **guard clauses** for invalid states (e.g., points insufficient, invalid AI parameters).
+- Log errors to admin dashboards and provide user-friendly messages.
+- Model expected errors as return values; use error boundaries for unexpected errors.
+
+---
+
+## 9. UI & Styling
+- Use **Shadcn UI + Radix UI** for components (Button, Card, Input, Tabs, Dialog, etc.).
+- Tailwind CSS for layout and utility classes; Shadcn/Radix for interactive components.
+- Use **Geist Sans** and **Geist Mono** fonts for typography.
+- Dark theme implementation with proper color tokens.
+- Ensure accessible components with proper ARIA labels.
+- Keep consistent spacing, color, and typography using project design tokens.
+- Use `class-variance-authority` for component variants.
+
+---
+
+## 10. Community & Sharing
+- Public gallery with design sharing functionality.
+- Admin approval system for community submissions.
+- Like system for community designs.
+- SEO-friendly URLs for individual designs.
+- Watermarking for free user generated content.
+
+---
+
+## 11. Testing & Performance
+- Comprehensive logging for AI generation debugging.
+- Error handling with fallback mechanisms.
+- Rate limiting for AI generation (20/hour per user).
+- Optimize for performance with proper loading states.
+- Use Vercel Analytics for monitoring.
+
+---
+
+## 12. Localization
+- Languages: English & Sinhala.
+- Language toggle in header (EN | SI).
+- Bilingual AI descriptions generation.
+- User language preference stored in profile.
+- All UI text should support both languages.
+
+---
+
+## 13. Architecture & Design System
+- Building types: Residential, Commercial, Hospitality
+- Architectural styles: Modern, Traditional, Contemporary, etc.
+- Design specifications: floors, rooms, land size, perspectives
+- Prompt generation system for AI consistency.
+- Design context management for state.
+
+---
+
+## 14. Admin Features
+- Admin dashboard for user management.
+- Design approval system.
+- Points and payment monitoring.
+- Architect profile management.
+- System analytics and reporting.
+
+---
+
+## 15. Documentation
+- Comment complex logic with JSDoc.
+- Maintain comprehensive logging for debugging.
+- Document API responses and error handling.
+- Document AI prompt generation and parameters.

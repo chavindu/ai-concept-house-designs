@@ -1,0 +1,11 @@
+---
+name: email-notification-best-practices.mdc
+description: Best practices for email notifications and templates
+globs: **/*.{ts,js}
+---
+
+- Use templating engines for dynamic email content generation.
+- Ensure emails are mobile-responsive and accessible.
+- Implement tracking for email opens and clicks to measure engagement.
+- Use clear and concise subject lines to improve open rates.
+- Regularly review and update email templates for consistency and branding.

@@ -121,12 +121,8 @@ export function Header() {
   return (
     <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-foreground">Architecture.lk</span>
-          </div>
-
+        {/* Left: Language Switch */}
+        <div className="flex items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="flex items-center gap-1">
@@ -142,58 +138,70 @@ export function Header() {
           </DropdownMenu>
         </div>
 
+        {/* Center: Logo */}
+        <div className="flex items-center gap-2">
+          <Home className="h-6 w-6 text-primary" />
+          <span className="text-xl font-bold text-foreground">Architecture.lk</span>
+        </div>
+
+        {/* Right: Profile/Login with Points */}
         <div className="flex items-center gap-2">
           {loading ? (
             <div className="w-20 h-9 bg-muted animate-pulse rounded-md" />
           ) : user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Profile</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                  <Coins className="h-4 w-4 mr-2" />
-                  Points: {userPoints}
-                </DropdownMenuItem>
-                {canClaimDaily && (
-                  <DropdownMenuItem onClick={handleClaimDailyPoints}>
-                    <Coins className="h-4 w-4 mr-2" />
-                    Claim Daily Points (+2)
+            <div className="flex items-center gap-3">
+              {/* Points Balance */}
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Coins className="h-4 w-4" />
+                <span>{userPoints} points</span>
+              </div>
+              
+              {/* Profile Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">Profile</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {canClaimDaily && (
+                    <DropdownMenuItem onClick={handleClaimDailyPoints}>
+                      <Coins className="h-4 w-4 mr-2" />
+                      Claim Daily Points (+2)
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/pricing")}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Buy Points
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push("/pricing")}>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Buy Points
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                  <ImageIcon className="h-4 w-4 mr-2" />
-                  My Generations
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  My Bookings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Account Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                  <History className="h-4 w-4 mr-2" />
-                  Payment History
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    My Generations
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    My Bookings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Account Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    <History className="h-4 w-4 mr-2" />
+                    Payment History
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
             <Button onClick={handleLogin} className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
@@ -201,18 +209,6 @@ export function Header() {
             </Button>
           )}
         </div>
-
-        <nav className="hidden md:flex items-center gap-6">
-          <a href="/gallery" className="text-muted-foreground hover:text-foreground transition-colors">
-            Gallery
-          </a>
-          <a href="/architects" className="text-muted-foreground hover:text-foreground transition-colors">
-            Architects
-          </a>
-          <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
-            Pricing
-          </a>
-        </nav>
       </div>
     </header>
   )

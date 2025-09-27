@@ -1,0 +1,11 @@
+---
+name: localization-best-practices.mdc
+description: Best practices for localization and internationalization
+globs: **/*.{ts,js,json}
+---
+
+- Use a consistent structure for translation files to simplify management.
+- Implement fallback languages for missing translations.
+- Test UI components in all supported languages to ensure proper rendering.
+- Allow users to set and save their language preferences in their profiles.
+- Regularly update translations to keep content relevant and accurate.
