@@ -11,9 +11,11 @@ export default function HomePage() {
       <main className="container mx-auto px-4 py-6">
         {/* Main Design Interface */}
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Left: Canvas Area */}
+          {/* Left: Canvas Area - Sticky */}
           <div className="order-2 lg:order-1">
-            <DesignCanvas />
+            <div className="sticky top-6">
+              <DesignCanvas />
+            </div>
           </div>
 
           {/* Right: Input Parameters */}

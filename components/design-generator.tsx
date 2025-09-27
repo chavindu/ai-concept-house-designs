@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sparkles, Wand2, Download, Share2, Lock, ChevronLeft, ChevronRight, Plus, Minus } from "lucide-react"
+import { Sparkles, Wand2, Lock, Plus, Minus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
@@ -148,17 +147,6 @@ export function DesignGenerator() {
     return () => subscription.unsubscribe()
   }, [supabase.auth])
 
-  const handleStyleNavigation = (direction: "prev" | "next") => {
-    if (direction === "prev") {
-      const newIndex = styleIndex > 0 ? styleIndex - 1 : architecturalStyles.length - 1
-      setStyleIndex(newIndex)
-      setSelectedStyle(architecturalStyles[newIndex].id)
-    } else {
-      const newIndex = styleIndex < architecturalStyles.length - 1 ? styleIndex + 1 : 0
-      setStyleIndex(newIndex)
-      setSelectedStyle(architecturalStyles[newIndex].id)
-    }
-  }
 
   const addFloor = () => {
     if (floors.length >= 5) return
@@ -328,13 +316,12 @@ export function DesignGenerator() {
     }
   }
 
-  const currentStyle = architecturalStyles[styleIndex]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Building Type Selection */}
-      <div className="space-y-4">
-        <Label className="text-lg font-semibold">Building Type</Label>
+      <div className="space-y-2">
+        <Label className="text-base font-semibold">Building Type</Label>
         <Select value={buildingType} onValueChange={setBuildingType}>
           <SelectTrigger>
             <SelectValue />
@@ -349,45 +336,35 @@ export function DesignGenerator() {
         </Select>
       </div>
 
-      {/* Style Selection Carousel */}
-      <div className="space-y-4">
-        <Label className="text-lg font-semibold">Architectural Style</Label>
-        <div className="relative">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Button variant="outline" size="icon" onClick={() => handleStyleNavigation("prev")}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <div className="flex-1 mx-4 text-center">
-                <img
-                  src={currentStyle.image || "/placeholder.svg"}
-                  alt={currentStyle.name}
-                  className="w-full h-48 object-cover rounded-lg mb-3"
-                />
-                <h3 className="text-lg font-semibold">{currentStyle.name}</h3>
-                <p className="text-sm text-muted-foreground">{currentStyle.description}</p>
-              </div>
-
-              <Button variant="outline" size="icon" onClick={() => handleStyleNavigation("next")}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex justify-center space-x-2">
-              {architecturalStyles.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full ${index === styleIndex ? "bg-primary" : "bg-muted"}`}
-                />
-              ))}
-            </div>
-          </Card>
+      {/* Style Selection Grid */}
+      <div className="space-y-2">
+        <Label className="text-base font-semibold">Architectural Style</Label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {architecturalStyles.map((style, index) => (
+            <Card 
+              key={style.id}
+              className={`p-3 cursor-pointer transition-all hover:shadow-md ${
+                selectedStyle === style.id ? "ring-2 ring-primary bg-primary/5" : ""
+              }`}
+              onClick={() => {
+                setSelectedStyle(style.id)
+                setStyleIndex(index)
+              }}
+            >
+              <img
+                src={style.image || "/placeholder.svg"}
+                alt={style.name}
+                className="w-full h-24 object-cover rounded mb-2"
+              />
+              <h3 className="text-sm font-medium">{style.name}</h3>
+              <p className="text-xs text-muted-foreground line-clamp-2">{style.description}</p>
+            </Card>
+          ))}
         </div>
       </div>
 
       {/* Land Size */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Land Size</Label>
           <Input
@@ -415,9 +392,9 @@ export function DesignGenerator() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label className="text-lg font-semibold">Floor Configuration</Label>
+          <Label className="text-base font-semibold">Floor Configuration</Label>
           <Button variant="outline" size="sm" onClick={addFloor} disabled={floors.length >= 5}>
             <Plus className="h-4 w-4 mr-2" />
             Add Floor
@@ -425,9 +402,9 @@ export function DesignGenerator() {
         </div>
 
         {floors.map((floor, index) => (
-          <Card key={floor.id} className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{floor.name}</h3>
+          <Card key={floor.id} className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold">{floor.name}</h3>
               {floors.length > 1 && (
                 <Button variant="outline" size="sm" onClick={() => removeFloor(floor.id)}>
                   <Minus className="h-4 w-4 mr-2" />
@@ -436,79 +413,145 @@ export function DesignGenerator() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-3">
-                <Label>Bedrooms: {floor.bedrooms}</Label>
-                <Slider
-                  value={[floor.bedrooms]}
-                  onValueChange={(value) => updateFloor(floor.id, "bedrooms", value[0])}
-                  min={0}
-                  max={10}
-                  step={1}
-                  className="w-full"
-                />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Bedrooms</Label>
+                <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "bedrooms", Math.max(0, floor.bedrooms - 1))}
+                    disabled={floor.bedrooms <= 0}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{floor.bedrooms}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "bedrooms", Math.min(10, floor.bedrooms + 1))}
+                    disabled={floor.bedrooms >= 10}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <Label>Bathrooms: {floor.bathrooms}</Label>
-                <Slider
-                  value={[floor.bathrooms]}
-                  onValueChange={(value) => updateFloor(floor.id, "bathrooms", value[0])}
-                  min={0}
-                  max={5}
-                  step={1}
-                  className="w-full"
-                />
+              <div className="space-y-2">
+                <Label className="text-sm">Bathrooms</Label>
+                <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "bathrooms", Math.max(0, floor.bathrooms - 1))}
+                    disabled={floor.bathrooms <= 0}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{floor.bathrooms}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "bathrooms", Math.min(5, floor.bathrooms + 1))}
+                    disabled={floor.bathrooms >= 5}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <Label>Living Rooms: {floor.livingRooms}</Label>
-                <Slider
-                  value={[floor.livingRooms]}
-                  onValueChange={(value) => updateFloor(floor.id, "livingRooms", value[0])}
-                  min={0}
-                  max={3}
-                  step={1}
-                  className="w-full"
-                />
+              <div className="space-y-2">
+                <Label className="text-sm">Living Rooms</Label>
+                <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "livingRooms", Math.max(0, floor.livingRooms - 1))}
+                    disabled={floor.livingRooms <= 0}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{floor.livingRooms}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "livingRooms", Math.min(3, floor.livingRooms + 1))}
+                    disabled={floor.livingRooms >= 3}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <Label>Kitchens: {floor.kitchens}</Label>
-                <Slider
-                  value={[floor.kitchens]}
-                  onValueChange={(value) => updateFloor(floor.id, "kitchens", value[0])}
-                  min={0}
-                  max={2}
-                  step={1}
-                  className="w-full"
-                />
+              <div className="space-y-2">
+                <Label className="text-sm">Kitchens</Label>
+                <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "kitchens", Math.max(0, floor.kitchens - 1))}
+                    disabled={floor.kitchens <= 0}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{floor.kitchens}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "kitchens", Math.min(2, floor.kitchens + 1))}
+                    disabled={floor.kitchens >= 2}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <Label>Dining Rooms: {floor.diningRooms}</Label>
-                <Slider
-                  value={[floor.diningRooms]}
-                  onValueChange={(value) => updateFloor(floor.id, "diningRooms", value[0])}
-                  min={0}
-                  max={2}
-                  step={1}
-                  className="w-full"
-                />
+              <div className="space-y-2">
+                <Label className="text-sm">Dining Rooms</Label>
+                <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "diningRooms", Math.max(0, floor.diningRooms - 1))}
+                    disabled={floor.diningRooms <= 0}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{floor.diningRooms}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateFloor(floor.id, "diningRooms", Math.min(2, floor.diningRooms + 1))}
+                    disabled={floor.diningRooms >= 2}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
 
               {/* Car parks only for ground floor */}
               {index === 0 && (
-                <div className="space-y-3">
-                  <Label>Car Parks: {floor.carParks}</Label>
-                  <Slider
-                    value={[floor.carParks]}
-                    onValueChange={(value) => updateFloor(floor.id, "carParks", value[0])}
-                    min={0}
-                    max={3}
-                    step={1}
-                    className="w-full"
-                  />
+                <div className="space-y-2">
+                  <Label className="text-sm">Car Parks</Label>
+                  <div className="flex items-center justify-between bg-muted rounded-lg p-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateFloor(floor.id, "carParks", Math.max(0, floor.carParks - 1))}
+                      disabled={floor.carParks <= 0}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="text-sm font-medium px-2">{floor.carParks}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateFloor(floor.id, "carParks", Math.min(3, floor.carParks + 1))}
+                      disabled={floor.carParks >= 3}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -517,8 +560,8 @@ export function DesignGenerator() {
       </div>
 
       {/* Optional Features */}
-      <div className="space-y-4">
-        <Label className="text-lg font-semibold">Optional Features</Label>
+      <div className="space-y-2">
+        <Label className="text-base font-semibold">Optional Features</Label>
         <div className="flex flex-wrap gap-3">
           <Badge
             variant={hasPool ? "default" : "secondary"}
@@ -545,7 +588,7 @@ export function DesignGenerator() {
       </div>
 
       {/* Roof Type & Perspective */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Roof Type</Label>
           <Select value={roofType} onValueChange={setRoofType}>
