@@ -1,88 +1,43 @@
-"use client"
-
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Coins, Download, Share2, Eye, Calendar, CreditCard, Sparkles } from "lucide-react"
+import { Coins, Calendar, CreditCard, Sparkles } from "lucide-react"
+import { DashboardInteractive } from "@/components/dashboard-interactive"
 
-export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [designs, setDesigns] = useState<any[]>([])
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+export default async function DashboardPage() {
+  const supabase = await createClient()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser()
-        
-        if (error || !user) {
-          redirect("/auth/login")
-          return
-        }
+  // Get authenticated user
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
 
-        setUser(user)
-
-        // Get user profile
-        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-        setProfile(profileData)
-
-        // Get user designs
-        const { data: designsData } = await supabase
-          .from("designs")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-
-        setDesigns(designsData || [])
-
-        // Get recent points transactions
-        const { data: transactionsData } = await supabase
-          .from("points_transactions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(10)
-
-        setTransactions(transactionsData || [])
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error)
-        redirect("/auth/login")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [supabase])
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Sparkles className="h-8 w-8 mx-auto animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading dashboard...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
+  if (error || !user) {
     redirect("/auth/login")
-    return null
   }
+
+  // Get user profile
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+  // Get user designs
+  const { data: designs = [] } = await supabase
+    .from("designs")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+
+  // Get recent points transactions
+  const { data: transactions = [] } = await supabase
+    .from("points_transactions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(10)
 
   const userInitials =
     profile?.full_name
@@ -258,55 +213,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              if (design.image_url) {
-                                const link = document.createElement('a');
-                                link.href = design.image_url;
-                                link.download = `${design.title || 'design'}-${design.id}.png`;
-                                link.click();
-                              }
-                            }}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              if (navigator.share) {
-                                navigator.share({
-                                  title: design.title || 'Generated Design',
-                                  text: design.description_en || design.prompt,
-                                  url: window.location.href
-                                });
-                              } else {
-                                // Fallback to copying to clipboard
-                                navigator.clipboard.writeText(window.location.href);
-                                alert('Link copied to clipboard!');
-                              }
-                            }}
-                          >
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              // Toggle public status
-                              // This would need to be implemented with a server action
-                              alert('Share to community feature coming soon!');
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            {design.is_public ? 'Remove from Gallery' : 'Add to Gallery'}
-                          </Button>
-                        </div>
+                        <DashboardInteractive designs={[design]} />
                       </div>
                     </div>
                   </Card>
