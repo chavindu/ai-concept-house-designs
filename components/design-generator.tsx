@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sparkles, Wand2, Lock, Plus, Minus } from "lucide-react"
+import { Sparkles, Wand2, Plus, Minus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
+import { AuthModal } from "@/components/auth-modal"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 const architecturalStyles = [
@@ -119,12 +120,63 @@ export function DesignGenerator() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   // Use shared design context
   const { isGenerating, setIsGenerating, setGeneratedDesign } = useDesign()
 
   const router = useRouter()
   const supabase = createClient()
+
+  // Save form state to localStorage whenever it changes
+  const saveFormState = () => {
+    const formState = {
+      buildingType,
+      selectedStyle,
+      styleIndex,
+      landSize,
+      landUnit,
+      floors,
+      hasPool,
+      hasBalcony,
+      hasTerrace,
+      roofType,
+      perspective,
+    }
+    localStorage.setItem('designGeneratorForm', JSON.stringify(formState))
+  }
+
+  // Load form state from localStorage
+  const loadFormState = () => {
+    try {
+      const saved = localStorage.getItem('designGeneratorForm')
+      if (saved) {
+        const formState = JSON.parse(saved)
+        setBuildingType(formState.buildingType || "residential")
+        setSelectedStyle(formState.selectedStyle || "")
+        setStyleIndex(formState.styleIndex || 0)
+        setLandSize(formState.landSize || 10)
+        setLandUnit(formState.landUnit || "perches")
+        setFloors(formState.floors || [{
+          id: "ground",
+          name: "Ground Floor",
+          bedrooms: 2,
+          bathrooms: 2,
+          livingRooms: 1,
+          kitchens: 1,
+          diningRooms: 1,
+          carParks: 1,
+        }])
+        setHasPool(formState.hasPool || false)
+        setHasBalcony(formState.hasBalcony || true)
+        setHasTerrace(formState.hasTerrace || false)
+        setRoofType(formState.roofType || "concrete-slab")
+        setPerspective(formState.perspective || "front")
+      }
+    } catch (error) {
+      console.error('Error loading form state:', error)
+    }
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -136,16 +188,22 @@ export function DesignGenerator() {
     }
 
     getUser()
+    loadFormState()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
     return () => subscription.unsubscribe()
   }, [supabase.auth])
+
+  // Save form state whenever any form field changes
+  useEffect(() => {
+    saveFormState()
+  }, [buildingType, selectedStyle, styleIndex, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, roofType, perspective])
 
 
   const addFloor = () => {
@@ -182,7 +240,7 @@ export function DesignGenerator() {
     if (!selectedStyle) return
 
     if (!user) {
-      router.push("/auth/login")
+      setShowAuthModal(true)
       return
     }
 
@@ -215,8 +273,8 @@ export function DesignGenerator() {
       console.log("Access token preview:", session?.access_token ? `${session.access_token.substring(0, 20)}...` : "NO TOKEN")
       
       if (!session?.access_token) {
-        console.log("❌ No session found, redirecting to login")
-        router.push("/auth/login")
+        console.log("❌ No session found, showing auth modal")
+        setShowAuthModal(true)
         return
       }
 
@@ -635,11 +693,6 @@ export function DesignGenerator() {
               <Wand2 className="mr-2 h-5 w-5 animate-spin" />
               Generating...
             </>
-          ) : !user && !loading ? (
-            <>
-              <Lock className="mr-2 h-5 w-5" />
-              Login to Generate
-            </>
           ) : (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
@@ -659,24 +712,16 @@ export function DesignGenerator() {
         </Card>
       )}
 
-      {/* Login Prompt for Non-Authenticated Users */}
-      {!user && !loading && (
-        <Card className="p-6 text-center space-y-4 bg-muted/50">
-          <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Login Required</h3>
-            <p className="text-muted-foreground mb-4">
-              Create an account or sign in to generate AI-powered house designs
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={() => router.push("/auth/login")}>Sign In</Button>
-              <Button variant="outline" onClick={() => router.push("/auth/register")}>
-                Create Account
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false)
+          // Trigger generation after successful login
+          handleGenerate()
+        }}
+      />
 
     </div>
   )
