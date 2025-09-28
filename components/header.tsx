@@ -12,6 +12,7 @@ import { Home, LogIn, User, CreditCard, History, Settings, Calendar, ImageIcon, 
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function Header() {
@@ -22,6 +23,7 @@ export function Header() {
   const [canClaimDaily, setCanClaimDaily] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const { toast } = useToast()
 
   useEffect(() => {
     // Get initial user and points
@@ -82,7 +84,11 @@ export function Header() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.access_token) {
-        alert("Please log in to claim daily points")
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to claim daily points",
+          variant: "destructive",
+        })
         return
       }
 
@@ -98,14 +104,26 @@ export function Header() {
         setUserPoints(result.newBalance)
         setCanClaimDaily(false)
         // Show success message
-        alert("Daily points claimed! You received 2 points.")
+        toast({
+          title: "Daily Points Claimed!",
+          description: "You received 2 points. New balance: " + result.newBalance,
+          variant: "success",
+        })
       } else {
         const error = await response.json()
-        alert(error.error || "Failed to claim daily points")
+        toast({
+          title: "Failed to Claim Points",
+          description: error.error || "Failed to claim daily points",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error claiming daily points:", error)
-      alert("Failed to claim daily points")
+      toast({
+        title: "Error",
+        description: "Failed to claim daily points. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 

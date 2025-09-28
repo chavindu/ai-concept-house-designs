@@ -4,8 +4,6 @@ import { claimDailyPoints } from "@/lib/points"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
-
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -14,6 +12,7 @@ export async function POST(request: NextRequest) {
 
     // Check authentication using the token from the header
     const token = authHeader.replace('Bearer ', '')
+    const supabase = createClient()
     const {
       data: { user },
       error: authError,

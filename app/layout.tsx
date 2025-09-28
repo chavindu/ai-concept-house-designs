@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import { DesignProvider } from "@/lib/design-context"
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "Architecture.lk - AI-Powered House Design Platform",
@@ -28,6 +29,7 @@ export default function RootLayout({
         <DesignProvider>
           <Suspense fallback={null}>{children}</Suspense>
         </DesignProvider>
+        <Toaster />
         <Analytics />
       </body>
     </html>
