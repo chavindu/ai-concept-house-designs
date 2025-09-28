@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     console.log("🚀 MAIN DESIGN GENERATION API CALLED")
     console.log("=====================================")
     
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
