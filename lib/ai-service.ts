@@ -365,9 +365,9 @@ async function generateBilingualDescriptions(prompt: string): Promise<{english: 
     
     // Try fallback to previous model if the new one fails
     try {
-      console.log("\n🔄 Trying fallback to gemini-1.5-flash...")
+      console.log("\n🔄 Trying fallback to gemini-2.5-flash-image-preview...")
       const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
       
       const fallbackPrompt = `
       Based on this architectural design prompt: "${prompt}"

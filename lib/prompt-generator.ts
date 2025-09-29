@@ -20,7 +20,6 @@ interface DesignFormData {
   hasPool: boolean
   hasBalcony: boolean
   hasTerrace: boolean
-  roofType: string
   perspective: string
 }
 
@@ -41,6 +40,9 @@ export function generatePrompt(formData: DesignFormData): string {
     case "sqft":
       landSizeInPerches = formData.landSize / 435.6 // 1 perch = 435.6 sqft
       break
+    case "sqm":
+      landSizeInPerches = formData.landSize / 25.29285264 // 1 perch = 25.29285264 sqm
+      break
     case "acres":
       landSizeInPerches = formData.landSize * 160 // 1 acre = 160 perches
       break
@@ -55,8 +57,7 @@ export function generatePrompt(formData: DesignFormData): string {
   // Generate optional features text
   const optionalFeatures = generateOptionalFeatures(formData)
 
-  // Generate roof specification
-  const roofSpec = generateRoofSpecification(formData.roofType, styleTemplate)
+  // Roof type removed from prompt; styles include roof guidance inherently
 
   const totalCarParks = formData.floors.reduce((sum, floor) => sum + floor.carParks, 0)
 
@@ -95,7 +96,7 @@ ${optionalFeatures}
 Fixed Design Language & Materials:
 ${styleTemplate.designLanguage}
 
-${roofSpec}
+  
 
 Core Materials:
 ${styleTemplate.materials}
@@ -155,15 +156,4 @@ function generateOptionalFeatures(formData: DesignFormData): string {
   return features.length > 0 ? `• Additional Features: ${features.join(", ")}.` : ""
 }
 
-function generateRoofSpecification(roofType: string, styleTemplate: any): string {
-  switch (roofType) {
-    case "concrete-slab":
-      return "Roof: Flat concrete slabs with appropriate overhangs and drainage."
-    case "pitched-roof":
-      return "Roof: Pitched roof forms with appropriate materials for the architectural style."
-    case "hybrid":
-      return "Roof: Hybrid combination of flat and pitched roof elements."
-    default:
-      return styleTemplate.roofSpecification || "Roof: As per architectural style requirements."
-  }
-}
+// Roof specification helper removed as roof type is embedded within style templates

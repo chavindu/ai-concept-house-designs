@@ -61,15 +61,10 @@ const buildingTypes = [
 
 const landSizeUnits = [
   { value: "sqft", label: "Square Feet" },
+  { value: "sqm", label: "Square Meters" },
   { value: "acres", label: "Acres" },
   { value: "hectares", label: "Hectares" },
   { value: "perches", label: "Perches" },
-]
-
-const roofTypes = [
-  { value: "concrete-slab", label: "Concrete Slab" },
-  { value: "pitched-roof", label: "Pitched Roof" },
-  { value: "hybrid", label: "Hybrid" },
 ]
 
 const perspectives = [
@@ -113,7 +108,6 @@ export function DesignGenerator() {
   const [hasPool, setHasPool] = useState(false)
   const [hasBalcony, setHasBalcony] = useState(true)
   const [hasTerrace, setHasTerrace] = useState(false)
-  const [roofType, setRoofType] = useState("concrete-slab")
   const [perspective, setPerspective] = useState("front")
 
   // App state
@@ -140,7 +134,6 @@ export function DesignGenerator() {
       hasPool,
       hasBalcony,
       hasTerrace,
-      roofType,
       perspective,
     }
     localStorage.setItem('designGeneratorForm', JSON.stringify(formState))
@@ -170,7 +163,6 @@ export function DesignGenerator() {
         setHasPool(formState.hasPool || false)
         setHasBalcony(formState.hasBalcony || true)
         setHasTerrace(formState.hasTerrace || false)
-        setRoofType(formState.roofType || "concrete-slab")
         setPerspective(formState.perspective || "front")
       }
     } catch (error) {
@@ -203,7 +195,7 @@ export function DesignGenerator() {
   // Save form state whenever any form field changes
   useEffect(() => {
     saveFormState()
-  }, [buildingType, selectedStyle, styleIndex, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, roofType, perspective])
+  }, [buildingType, selectedStyle, styleIndex, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, perspective])
 
 
   const addFloor = () => {
@@ -255,7 +247,6 @@ export function DesignGenerator() {
       hasPool,
       hasBalcony,
       hasTerrace,
-      roofType,
       perspective,
     }
 
@@ -374,22 +365,31 @@ export function DesignGenerator() {
     }
   }
 
+  // Listen for perspective regeneration requests
+  useEffect(() => {
+    const handler = (e: any) => {
+      const newPerspective = e.detail?.perspective
+      if (!newPerspective) return
+      setPerspective(newPerspective)
+      // Trigger immediate regeneration with updated perspective
+      handleGenerate()
+    }
+    document.addEventListener('regenerate-with-perspective', handler as EventListener)
+    return () => document.removeEventListener('regenerate-with-perspective', handler as EventListener)
+  }, [selectedStyle, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, buildingType])
+
 
   return (
     <div className="space-y-6">
       {/* Building Type Selection */}
       <div className="space-y-2">
         <Label className="text-base font-semibold">Building Type</Label>
-        <Select value={buildingType} onValueChange={setBuildingType}>
+        <Select value={buildingType} onValueChange={setBuildingType} disabled>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {buildingTypes.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="residential">Residential</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -397,7 +397,7 @@ export function DesignGenerator() {
       {/* Style Selection Grid */}
       <div className="space-y-2">
         <Label className="text-base font-semibold">Architectural Style</Label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {architecturalStyles.map((style, index) => (
             <Card 
               key={style.id}
@@ -409,11 +409,13 @@ export function DesignGenerator() {
                 setStyleIndex(index)
               }}
             >
-              <img
-                src={style.image || "/placeholder.svg"}
-                alt={style.name}
-                className="w-full h-24 object-cover rounded mb-2"
-              />
+              <div className="w-full aspect-square rounded mb-2 overflow-hidden">
+                <img
+                  src={style.image || "/placeholder.svg"}
+                  alt={style.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <h3 className="text-sm font-medium">{style.name}</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">{style.description}</p>
             </Card>
@@ -453,7 +455,7 @@ export function DesignGenerator() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-base font-semibold">Floor Configuration</Label>
-          <Button variant="outline" size="sm" onClick={addFloor} disabled={floors.length >= 5}>
+          <Button variant="default" size="sm" onClick={addFloor} disabled={floors.length >= 5}>
             <Plus className="h-4 w-4 mr-2" />
             Add Floor
           </Button>
@@ -464,7 +466,7 @@ export function DesignGenerator() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-semibold">{floor.name}</h3>
               {floors.length > 1 && (
-                <Button variant="outline" size="sm" onClick={() => removeFloor(floor.id)}>
+                <Button variant="default" size="sm" onClick={() => removeFloor(floor.id)}>
                   <Minus className="h-4 w-4 mr-2" />
                   Remove
                 </Button>
@@ -476,7 +478,7 @@ export function DesignGenerator() {
                 <Label className="text-sm">Bedrooms</Label>
                 <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "bedrooms", Math.max(0, floor.bedrooms - 1))}
                     disabled={floor.bedrooms <= 0}
@@ -485,7 +487,7 @@ export function DesignGenerator() {
                   </Button>
                   <span className="text-sm font-medium px-2">{floor.bedrooms}</span>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "bedrooms", Math.min(10, floor.bedrooms + 1))}
                     disabled={floor.bedrooms >= 10}
@@ -499,7 +501,7 @@ export function DesignGenerator() {
                 <Label className="text-sm">Bathrooms</Label>
                 <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "bathrooms", Math.max(0, floor.bathrooms - 1))}
                     disabled={floor.bathrooms <= 0}
@@ -508,7 +510,7 @@ export function DesignGenerator() {
                   </Button>
                   <span className="text-sm font-medium px-2">{floor.bathrooms}</span>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "bathrooms", Math.min(5, floor.bathrooms + 1))}
                     disabled={floor.bathrooms >= 5}
@@ -522,7 +524,7 @@ export function DesignGenerator() {
                 <Label className="text-sm">Living Rooms</Label>
                 <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "livingRooms", Math.max(0, floor.livingRooms - 1))}
                     disabled={floor.livingRooms <= 0}
@@ -531,7 +533,7 @@ export function DesignGenerator() {
                   </Button>
                   <span className="text-sm font-medium px-2">{floor.livingRooms}</span>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "livingRooms", Math.min(3, floor.livingRooms + 1))}
                     disabled={floor.livingRooms >= 3}
@@ -545,7 +547,7 @@ export function DesignGenerator() {
                 <Label className="text-sm">Kitchens</Label>
                 <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "kitchens", Math.max(0, floor.kitchens - 1))}
                     disabled={floor.kitchens <= 0}
@@ -554,7 +556,7 @@ export function DesignGenerator() {
                   </Button>
                   <span className="text-sm font-medium px-2">{floor.kitchens}</span>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "kitchens", Math.min(2, floor.kitchens + 1))}
                     disabled={floor.kitchens >= 2}
@@ -568,7 +570,7 @@ export function DesignGenerator() {
                 <Label className="text-sm">Dining Rooms</Label>
                 <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "diningRooms", Math.max(0, floor.diningRooms - 1))}
                     disabled={floor.diningRooms <= 0}
@@ -577,7 +579,7 @@ export function DesignGenerator() {
                   </Button>
                   <span className="text-sm font-medium px-2">{floor.diningRooms}</span>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => updateFloor(floor.id, "diningRooms", Math.min(2, floor.diningRooms + 1))}
                     disabled={floor.diningRooms >= 2}
@@ -593,7 +595,7 @@ export function DesignGenerator() {
                   <Label className="text-sm">Car Parks</Label>
                   <div className="flex items-center justify-between bg-muted rounded-lg p-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       onClick={() => updateFloor(floor.id, "carParks", Math.max(0, floor.carParks - 1))}
                       disabled={floor.carParks <= 0}
@@ -602,7 +604,7 @@ export function DesignGenerator() {
                     </Button>
                     <span className="text-sm font-medium px-2">{floor.carParks}</span>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       onClick={() => updateFloor(floor.id, "carParks", Math.min(3, floor.carParks + 1))}
                       disabled={floor.carParks >= 3}
@@ -620,65 +622,23 @@ export function DesignGenerator() {
       {/* Optional Features */}
       <div className="space-y-2">
         <Label className="text-base font-semibold">Optional Features</Label>
-        <div className="flex flex-wrap gap-3">
-          <Badge
-            variant={hasPool ? "default" : "secondary"}
-            className="cursor-pointer px-4 py-2"
-            onClick={() => setHasPool(!hasPool)}
-          >
-            Swimming Pool
-          </Badge>
-          <Badge
-            variant={hasBalcony ? "default" : "secondary"}
-            className="cursor-pointer px-4 py-2"
-            onClick={() => setHasBalcony(!hasBalcony)}
-          >
-            Balcony
-          </Badge>
-          <Badge
-            variant={hasTerrace ? "default" : "secondary"}
-            className="cursor-pointer px-4 py-2"
-            onClick={() => setHasTerrace(!hasTerrace)}
-          >
-            Terrace/Roof Garden
-          </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={hasPool} onChange={() => setHasPool(!hasPool)} className="h-4 w-4" />
+            <span>Swimming Pool</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={hasBalcony} onChange={() => setHasBalcony(!hasBalcony)} className="h-4 w-4" />
+            <span>Balcony</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={hasTerrace} onChange={() => setHasTerrace(!hasTerrace)} className="h-4 w-4" />
+            <span>Terrace/Roof Garden</span>
+          </label>
         </div>
       </div>
 
-      {/* Roof Type & Perspective */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label>Roof Type</Label>
-          <Select value={roofType} onValueChange={setRoofType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {roofTypes.map((roof) => (
-                <SelectItem key={roof.value} value={roof.value}>
-                  {roof.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Perspective</Label>
-          <Select value={perspective} onValueChange={setPerspective}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {perspectives.map((view) => (
-                <SelectItem key={view.value} value={view.value}>
-                  {view.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      {/* Perspective moved to canvas controls */}
 
       {/* Generate Button */}
       <div className="flex justify-center">
@@ -696,7 +656,7 @@ export function DesignGenerator() {
           ) : (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
-              Generate Design
+              Generate Design (1 Point)
             </>
           )}
         </Button>
