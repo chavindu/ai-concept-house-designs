@@ -56,20 +56,50 @@ export async function generateArchitecturalDesign(
     console.log("ℹ️ Using gemini-2.5-flash-image-preview for image generation")
     
     let imageResult
-    try {
-      // Add timeout to image generation
-      imageResult = await Promise.race([
-        generateArchitecturalImage(prompt),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Image generation timeout after 60 seconds')), 60000)
-        )
-      ])
-      console.log("✅ Image generation completed")
-      console.log("Image URL length:", imageResult.imageUrl.length)
-      console.log("Image URL preview:", imageResult.imageUrl.substring(0, 100) + "...")
-    } catch (imageError) {
-      console.error("❌ STEP 4 FAILED: Image generation error:", imageError)
-      throw imageError // Re-throw to trigger fallback
+    // Retry policy: up to 3 attempts, exponential backoff: 0s, 1s, 2s
+    const maxAttempts = 3
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`\n🔁 Image generation attempt ${attempt}/${maxAttempts}`)
+        const result = await Promise.race([
+          generateArchitecturalImage(prompt),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Image generation timeout after 60 seconds')), 60000)
+          )
+        ])
+        // Detect text-only data URL (non-image) to trigger retry
+        const isTextDataUrl = typeof result.imageUrl === 'string' && result.imageUrl.startsWith('data:text/')
+        if (isTextDataUrl) {
+          console.warn("⚠️ Model returned text-only output instead of image")
+          if (attempt < maxAttempts) {
+            const backoffMs = (attempt - 1) * 1000
+            console.log(`⏳ Retrying after ${backoffMs}ms due to text-only output`)
+            if (backoffMs > 0) {
+              await new Promise(res => setTimeout(res, backoffMs))
+            }
+            continue
+          }
+        }
+        imageResult = result
+        console.log("✅ Image generation completed")
+        console.log("Image URL length:", imageResult.imageUrl.length)
+        console.log("Image URL preview:", imageResult.imageUrl.substring(0, 100) + "...")
+        break
+      } catch (imageError) {
+        console.error("❌ STEP 4 FAILED: Image generation error:", imageError)
+        if (attempt < maxAttempts) {
+          const backoffMs = (attempt - 1) * 1000
+          console.log(`⏳ Retrying after ${backoffMs}ms due to error/timeout`)
+          if (backoffMs > 0) {
+            await new Promise(res => setTimeout(res, backoffMs))
+          }
+          continue
+        }
+        throw imageError // Re-throw after final attempt to trigger fallback
+      }
+    }
+    if (!imageResult) {
+      throw new Error('Image generation failed after retries')
     }
     
     // STEP 5: Generate Descriptions

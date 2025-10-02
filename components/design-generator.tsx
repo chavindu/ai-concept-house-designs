@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sparkles, Wand2, Plus, Minus } from "lucide-react"
+import { Sparkles, Wand2, Plus, Minus, Loader2, CheckCircle2, ShieldAlert } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
@@ -106,7 +106,7 @@ export function DesignGenerator() {
   ])
 
   const [hasPool, setHasPool] = useState(false)
-  const [hasBalcony, setHasBalcony] = useState(true)
+  const [hasBalcony, setHasBalcony] = useState(false)
   const [hasTerrace, setHasTerrace] = useState(false)
   const [perspective, setPerspective] = useState("front")
 
@@ -118,6 +118,27 @@ export function DesignGenerator() {
 
   // Use shared design context
   const { isGenerating, setIsGenerating, setGeneratedDesign } = useDesign()
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [currentStep, setCurrentStep] = useState<"validating" | "queued" | "generating" | "watermarking" | "saving" | "done">("validating")
+  const controllerRef = useRef<AbortController | null>(null)
+  const [profilePoints, setProfilePoints] = useState<number | null>(null)
+  const isFreeUser = (profilePoints ?? 0) <= 10
+  const tips = [
+    { en: "Use larger windows for better natural light.", si: "හොඳ ස්වභාවික ආලෝකයට විශාල කවුළු භාවිතා කරන්න." },
+    { en: "Orient living spaces to catch prevailing breezes.", si: "වසන්ත සුළඟට මුහුණලා ජීවන අවකාශ සකසන්න." },
+    { en: "Blend local materials with modern forms.", si: "දේශීය ද්‍රව්‍ය නූතන හැඩතල සමඟ මිශ්‍ර කරන්න." },
+    { en: "Add courtyards for tropical ventilation.", si: "උෂ්ණ වාතායනය සඳහා ඇඟෙවල් එක් කරන්න." },
+  ]
+  const [tipIndex, setTipIndex] = useState(0)
+  const galleryImages = [
+    "/modern-house.png",
+    "/contemporary-house.png",
+    "/modern-villa.png",
+    "/traditional-house.jpg",
+    "/tropical-house-design.jpg",
+    "/modern-glass-office.png",
+  ]
 
   const router = useRouter()
   const supabase = createClient()
@@ -160,9 +181,9 @@ export function DesignGenerator() {
           diningRooms: 1,
           carParks: 1,
         }])
-        setHasPool(formState.hasPool || false)
-        setHasBalcony(formState.hasBalcony || true)
-        setHasTerrace(formState.hasTerrace || false)
+        setHasPool(!!formState.hasPool)
+        setHasBalcony(!!formState.hasBalcony)
+        setHasTerrace(!!formState.hasTerrace)
         setPerspective(formState.perspective || "front")
       }
     } catch (error) {
@@ -177,6 +198,14 @@ export function DesignGenerator() {
       } = await supabase.auth.getUser()
       setUser(user)
       setLoading(false)
+      try {
+        if (user?.id) {
+          const { data } = await supabase.from("profiles").select("points").eq("id", user.id).single()
+          if (data?.points !== undefined) setProfilePoints(data.points)
+        } else {
+          setProfilePoints(null)
+        }
+      } catch {}
     }
 
     getUser()
@@ -187,6 +216,19 @@ export function DesignGenerator() {
     } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       setUser(session?.user ?? null)
       setLoading(false)
+      if (session?.user?.id) {
+        supabase
+          .from("profiles")
+          .select("points")
+          .eq("id", session.user.id)
+          .single()
+          .then((res: { data: { points?: number } | null } | null | undefined) => {
+            const data = res?.data as { points?: number } | null
+            if (data?.points !== undefined) setProfilePoints(data.points)
+          })
+      } else {
+        setProfilePoints(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -237,6 +279,9 @@ export function DesignGenerator() {
     }
 
     setIsGenerating(true)
+    setGenerationStartedAt(Date.now())
+    setElapsedSeconds(0)
+    setCurrentStep("validating")
 
     const formData = {
       buildingType,
@@ -271,8 +316,9 @@ export function DesignGenerator() {
 
       console.log("📤 Sending request to API...")
       
-      // Create an AbortController for timeout
+      // Create an AbortController for timeout/cancel
       const controller = new AbortController()
+      controllerRef.current = controller
       const timeoutId = setTimeout(() => {
         controller.abort()
         console.log("⏰ Request timed out after 120 seconds")
@@ -282,6 +328,7 @@ export function DesignGenerator() {
       console.log("🔑 Using token:", session.access_token.substring(0, 20) + "...")
       console.log("📋 Sending form data:", formData)
       
+      setCurrentStep("queued")
       const response = await fetch("/api/generate-design", {
         method: "POST",
         headers: {
@@ -297,11 +344,13 @@ export function DesignGenerator() {
 
       console.log("📥 Response received:", response.status, response.statusText)
 
+      setCurrentStep("generating")
       if (response.ok) {
         const result = await response.json()
         console.log("✅ Success response:", result)
         
         // Update shared design context
+        setCurrentStep(result?.isWatermarked ? "watermarking" : "saving")
         setGeneratedDesign({
           imageUrl: result.imageUrl || "/ai-generated-house-design-concept.jpg",
           thumbnailUrl: result.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
@@ -312,6 +361,7 @@ export function DesignGenerator() {
           designId: result.designId,
           remainingPoints: result.remainingPoints || 0,
         })
+        setCurrentStep("done")
         
         // Auto-scroll to the canvas area
         setTimeout(() => {
@@ -362,7 +412,132 @@ export function DesignGenerator() {
     } finally {
       console.log("🏁 Design generation process completed")
       setIsGenerating(false)
+      controllerRef.current = null
     }
+  }
+
+  // Timer effect during generation
+  useEffect(() => {
+    if (!isGenerating || !generationStartedAt) return
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - generationStartedAt) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isGenerating, generationStartedAt])
+
+  const steps: { key: typeof currentStep; label: string }[] = [
+    { key: "validating", label: "Validating" },
+    { key: "queued", label: "Queued" },
+    { key: "generating", label: "Generating" },
+    { key: "watermarking", label: "Watermarking" },
+    { key: "saving", label: "Saving" },
+    { key: "done", label: "Completed" },
+  ] as any
+
+  const renderLoadingUI = () => {
+    if (!isGenerating) return null
+    return (
+      <Card className="p-4" role="status" aria-live="polite">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="font-medium">Generating design</span>
+          </div>
+          <span className="text-xs text-muted-foreground">{elapsedSeconds}s</span>
+        </div>
+
+        {/* Stepper */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {steps.map((step, index) => {
+            const activeIndex = steps.findIndex(s => s.key === currentStep)
+            const isActive = activeIndex >= index
+            return (
+              <div key={step.key} className="flex items-center gap-2">
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${isActive ? "bg-primary/10 border-primary text-primary" : "text-muted-foreground"}`}>
+                  {isActive ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="w-3.5 h-3.5 rounded-full bg-muted inline-block" />}
+                  <span>{step.label}</span>
+                </div>
+                {index < steps.length - 1 && <div className="w-6 h-px bg-muted" />}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Progress bar (indeterminate) */}
+        <div className="h-2 w-full bg-muted rounded overflow-hidden my-3" aria-hidden>
+          <div className="h-full w-2/3 bg-primary animate-pulse" />
+        </div>
+
+        {/* Prompt preview (EN | SI) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-1">Prompt (EN)</div>
+            <p className="text-xs text-muted-foreground">
+              {`${buildingType} • ${selectedStyle || "style"} • ${landSize} ${landUnit} • ${floors.length} floor(s) • features: ${[hasPool && "pool", hasBalcony && "balcony", hasTerrace && "terrace"].filter(Boolean).join(", ") || "none"} • perspective: ${perspective}`}
+            </p>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-1">විස්තරය (SI)</div>
+            <p className="text-xs text-muted-foreground">
+              {`${buildingType} ගොඩනැගිල්ල • ශෛලිය: ${selectedStyle || "-"} • ඉඩම් විශාලත්වය: ${landSize} ${landUnit} • මහල: ${floors.length} • විශේෂාංග: ${[hasPool && "පූල් එක", hasBalcony && "බල්කනි", hasTerrace && "තරාසය"].filter(Boolean).join(", ") || "නැත"} • දර්ශනය: ${perspective}`}
+            </p>
+          </Card>
+        </div>
+
+        {/* Tips + Mini Gallery */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+          <Card className="p-3">
+            <div className="text-xs font-semibold mb-1">Design Tip</div>
+            <p className="text-xs"><span className="font-medium">EN:</span> {tips[tipIndex].en}</p>
+            <p className="text-xs text-muted-foreground"><span className="font-medium">SI:</span> {tips[tipIndex].si}</p>
+          </Card>
+          <Card className="p-3 md:col-span-2">
+            <div className="text-xs font-semibold mb-2">From the community</div>
+            <div className="grid grid-cols-3 gap-2">
+              {galleryImages.map((src, i) => (
+                <div key={i} className="aspect-square rounded overflow-hidden bg-muted">
+                  <img src={src} alt="gallery" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 text-right">
+              <button className="text-xs text-primary hover:underline" onClick={() => router.push("/gallery")}>View gallery</button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Points & Upsell */}
+        <div className="mt-3 p-3 border rounded">
+          <div className="flex items-center justify-between">
+            <div className="text-xs">
+              <div className="font-medium">Points balance: {profilePoints ?? "—"}</div>
+              {isFreeUser && (
+                <div className="text-muted-foreground">Free users may see a small watermark.</div>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={() => router.push("/pricing")}>Get more points</Button>
+          </div>
+        </div>
+
+        {/* Timeout fallback and controls */}
+        <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+          <ShieldAlert className="h-3.5 w-3.5" />
+          <span>Typically completes in 20–60s. If it takes too long, you can retry.</span>
+        </div>
+        {elapsedSeconds >= 60 && (
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded">
+            <div className="flex items-center gap-2 text-amber-800 mb-2 text-sm">
+              <ShieldAlert className="h-4 w-4" />
+              <span>This is taking longer than usual. You can retry or wait a bit more.</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => handleGenerate()}>Retry</Button>
+              <Button size="sm" variant="outline" onClick={() => setIsGenerating(false)}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </Card>
+    )
   }
 
   // Listen for perspective regeneration requests

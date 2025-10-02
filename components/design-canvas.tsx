@@ -11,26 +11,29 @@ export function DesignCanvas() {
 
   if (isGenerating) {
     return (
-      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-lg mx-auto flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div id="design-canvas" className="space-y-4">
+        <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-lg mx-auto flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+            <div>
+              <p className="text-lg font-medium">Generating your design...</p>
+              <p className="text-sm text-muted-foreground">This may take a few moments</p>
+            </div>
           </div>
-          <div>
-            <p className="text-lg font-medium">Generating your design...</p>
-            <p className="text-sm text-muted-foreground">This may take a few moments</p>
-          </div>
-          <div className="flex flex-wrap gap-2 justify-center pt-2">
-            <Button variant={currentPerspective === 'front-left' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-left'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-left' } })) }}>
-              Front-Left View (1 Point)
-            </Button>
-            <Button variant={currentPerspective === 'front' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front' } })) }}>
-              Front View (1 Point)
-            </Button>
-            <Button variant={currentPerspective === 'front-right' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-right'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-right' } })) }}>
-              Front-Right View (1 Point)
-            </Button>
-          </div>
+        </div>
+        {/* Keep buttons consistently below the canvas while generating */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          <Button variant={currentPerspective === 'front-left' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-left'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-left' } })) }}>
+            Front-Left View (1 Point)
+          </Button>
+          <Button variant={currentPerspective === 'front' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front' } })) }}>
+            Front View (1 Point)
+          </Button>
+          <Button variant={currentPerspective === 'front-right' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-right'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-right' } })) }}>
+            Front-Right View (1 Point)
+          </Button>
         </div>
       </div>
     )

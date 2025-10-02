@@ -13,7 +13,7 @@ interface FloorConfig {
 
 interface DesignFormData {
   buildingType: string
-  style: string
+  style: keyof typeof architecturalStyleTemplates
   landSize: number
   landUnit: string
   floors: FloorConfig[]
@@ -62,6 +62,7 @@ export function generatePrompt(formData: DesignFormData): string {
   const totalCarParks = formData.floors.reduce((sum, floor) => sum + floor.carParks, 0)
 
   // Build the complete prompt
+  const isSingleStorey = formData.floors.length === 1
   const prompt = `
 ${styleTemplate.inspiration}
 
@@ -79,10 +80,13 @@ Time: Daytime
 
 Core Specifications:
 • Land: ${Math.round(landSizeInPerches)} perches, flat terrain.
-• Number of Floors: ${formData.floors.length} levels maximum.
+${isSingleStorey
+  ? `• Storeys: Exactly 1 storey. Do NOT include any upper floors, mezzanines, or internal/external staircases.`
+  : `• Storeys: Exactly ${formData.floors.length} storeys. Include clearly visible internal stair(s). Do NOT add extra levels, mezzanines, split-levels, or roof volumes that suggest additional floors.`}
 ${totalCarParks > 0 ? `• Parking: A carport or sheltered space for ${totalCarParks} vehicle(s), architecturally integrated into the main building's form.` : ""}
 
 ${spatialRequirements}
+• The exterior massing must clearly show exactly ${formData.floors.length} distinct storey/ies. Do not imply additional levels, mezzanines, or split-levels.
 
 Key Features:
 ${styleTemplate.keyFeatures}
@@ -103,6 +107,21 @@ ${styleTemplate.materials}
 
 Creative Direction & Variations:
 ${styleTemplate.creativeDirection}
+${isSingleStorey ? `
+
+Single-Storey Overrides (MANDATORY):
+• Exterior must read strictly as one level with a continuous roof/eaves line at a single height.
+• Do NOT include stacked or overlapping upper volumes, roof pop-ups, clerestory bands reading as a second level, or dramatic cantilevers that imply an upper floor.
+• No upper-level windows, guardrails/balustrades, balconies, or roof terraces.
+• No external stair towers; internal stairs are not allowed because there is no upper level.
+• Double-height interior spaces are allowed ONLY if the exterior still reads as a single storey; do not show an upper volume.
+` : ""}
+${isSingleStorey ? `
+
+Hard Constraints:
+• Absolutely no visible upper storey volumes.
+• No external or internal staircases suggesting an upper floor.
+• Roof may be flat/parapet or pitched, but keep the building single-storey.` : ""}
 `.trim()
 
   console.log("📝 Generated prompt:", prompt)
