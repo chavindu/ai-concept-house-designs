@@ -49,8 +49,7 @@ export default async function DashboardPage() {
     "U"
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -73,9 +72,11 @@ export default async function DashboardPage() {
                 </div>
               </div>
             </Card>
-            <Button className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Buy Points
+            <Button asChild className="flex items-center gap-2">
+              <a href="/pricing">
+                <CreditCard className="h-4 w-4" />
+                Buy Points
+              </a>
             </Button>
           </div>
         </div>
@@ -332,7 +333,6 @@ export default async function DashboardPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   )
 }

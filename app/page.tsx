@@ -1,14 +1,10 @@
-import { Header } from "@/components/header"
 import { DesignGenerator } from "@/components/design-generator"
 import { CommunityGallery } from "@/components/community-gallery"
 import { DesignCanvas } from "@/components/design-canvas"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-
-      <main className="container mx-auto px-4 py-6">
+    <main className="container mx-auto px-4 py-6">
         {/* Main Design Interface */}
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
           {/* Left: Canvas Area - Sticky */}
@@ -26,7 +22,6 @@ export default function HomePage() {
 
         {/* Community Gallery */}
         <CommunityGallery />
-      </main>
-    </div>
+    </main>
   )
 }

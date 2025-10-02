@@ -7,6 +7,8 @@ import { Suspense } from "react"
 import "./globals.css"
 import { DesignProvider } from "@/lib/design-context"
 import { Toaster } from "@/components/ui/toaster"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 
 export const metadata: Metadata = {
   title: "Architecture.lk - AI-Powered House Design Platform",
@@ -27,7 +29,13 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <DesignProvider>
-          <Suspense fallback={null}>{children}</Suspense>
+          <div className="min-h-screen bg-background flex flex-col">
+            <Header />
+            <main className="flex-1">
+              <Suspense fallback={null}>{children}</Suspense>
+            </main>
+            <Footer />
+          </div>
         </DesignProvider>
         <Toaster />
         <Analytics />

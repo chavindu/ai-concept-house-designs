@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
+import Link from "next/link"
 
 export function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -157,10 +158,10 @@ export function Header() {
         </div>
 
         {/* Center: Logo */}
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <Home className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold text-foreground">Architecture.lk</span>
-        </div>
+        </Link>
 
         {/* Right: Profile/Login with Points */}
         <div className="flex items-center gap-2">
