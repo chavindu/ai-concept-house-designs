@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Coins, Calendar, CreditCard, Sparkles } from "lucide-react"
+import { Coins, Calendar, CreditCard, Sparkles, Eye } from "lucide-react"
 import { DashboardInteractive } from "@/components/dashboard-interactive"
 
 export default async function DashboardPage() {

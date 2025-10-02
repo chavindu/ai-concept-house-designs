@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 
 export async function deductPoints(userId: string, amount: number, description: string, designId?: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Start a transaction
   const { data: profile, error: profileError } = await supabase
@@ -50,7 +50,7 @@ export async function addPoints(
   description: string,
   type: "earned" | "purchased" = "earned",
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get current points
   const { data: profile, error: profileError } = await supabase
@@ -90,7 +90,7 @@ export async function addPoints(
 
 // Daily points refresh function for free users
 export async function claimDailyPoints(userId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Check if user already claimed today
   const { data: profile, error: profileError } = await supabase

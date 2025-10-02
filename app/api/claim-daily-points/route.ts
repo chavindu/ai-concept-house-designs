@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     // Check authentication using the token from the header
     const token = authHeader.replace('Bearer ', '')
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,
