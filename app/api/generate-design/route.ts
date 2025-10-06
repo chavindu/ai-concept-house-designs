@@ -121,15 +121,13 @@ export async function POST(request: NextRequest) {
       const aiResult = await generateArchitecturalDesign(prompt, isFreeUser)
       console.log("✅ AI generation completed:", aiResult)
 
-      // Update design with generated image and descriptions
+      // Update design with generated image
       if (design) {
         await supabase
           .from("designs")
           .update({
             image_url: aiResult.imageUrl,
             thumbnail_url: aiResult.thumbnailUrl,
-            description_en: aiResult.descriptionEn,
-            description_si: aiResult.descriptionSi,
             is_watermarked: aiResult.isWatermarked,
             status: "completed",
           })
@@ -140,8 +138,6 @@ export async function POST(request: NextRequest) {
         success: true,
         imageUrl: aiResult.imageUrl,
         thumbnailUrl: aiResult.thumbnailUrl,
-        descriptionEn: aiResult.descriptionEn,
-        descriptionSi: aiResult.descriptionSi,
         isWatermarked: aiResult.isWatermarked,
         prompt: prompt,
         designId: design?.id,

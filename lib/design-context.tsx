@@ -5,8 +5,6 @@ import { createContext, useContext, useState, ReactNode } from "react"
 interface GeneratedDesign {
   imageUrl: string
   thumbnailUrl: string
-  descriptionEn: string
-  descriptionSi: string
   isWatermarked: boolean
   prompt: string
   designId?: string

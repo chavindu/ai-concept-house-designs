@@ -354,8 +354,6 @@ export function DesignGenerator() {
         setGeneratedDesign({
           imageUrl: result.imageUrl || "/ai-generated-house-design-concept.jpg",
           thumbnailUrl: result.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
-          descriptionEn: result.descriptionEn || "A beautiful architectural design generated with AI",
-          descriptionSi: result.descriptionSi || "AI භාවිතයෙන් ජනනය කරන ලද අලංකාර ගෘහ නිර්මාණයක්",
           isWatermarked: result.isWatermarked || false,
           prompt: result.prompt || "Mock prompt",
           designId: result.designId,

@@ -73,8 +73,6 @@ export function DesignGenerationTester() {
         setGeneratedDesign({
           imageUrl: data.imageUrl || "/ai-generated-house-design-concept.jpg",
           thumbnailUrl: data.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
-          descriptionEn: data.descriptionEn || "A beautiful architectural design generated with AI",
-          descriptionSi: data.descriptionSi || "AI භාවිතයෙන් ජනනය කරන ලද අලංකාර ගෘහ නිර්මාණයක්",
           isWatermarked: data.isWatermarked || false,
           prompt: data.prompt || "Mock prompt",
           designId: data.designId,

@@ -7,8 +7,6 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
 export interface AIGenerationResult {
   imageUrl: string
   thumbnailUrl: string
-  descriptionEn: string
-  descriptionSi: string
   isWatermarked: boolean
 }
 
@@ -102,31 +100,14 @@ export async function generateArchitecturalDesign(
       throw new Error('Image generation failed after retries')
     }
     
-    // STEP 5: Generate Descriptions
+    // STEP 5: Prepare Result
     console.log("\n" + "=".repeat(80))
-    console.log("📝 STEP 5: Generating Bilingual Descriptions")
-    console.log("=".repeat(80))
-    
-    const descriptions = await Promise.race([
-      generateBilingualDescriptions(prompt),
-      new Promise<{english: string, sinhala: string}>((_, reject) => 
-        setTimeout(() => reject(new Error('Description generation timeout after 30 seconds')), 30000)
-      )
-    ])
-    console.log("✅ Description generation completed")
-    console.log("English description:", descriptions.english)
-    console.log("Sinhala description:", descriptions.sinhala)
-    
-    // STEP 6: Prepare Result
-    console.log("\n" + "=".repeat(80))
-    console.log("📦 STEP 6: Preparing Final Result")
+    console.log("📦 STEP 5: Preparing Final Result")
     console.log("=".repeat(80))
     
     const result = {
       imageUrl: imageResult.imageUrl,
       thumbnailUrl: imageResult.thumbnailUrl,
-      descriptionEn: descriptions.english,
-      descriptionSi: descriptions.sinhala,
       isWatermarked: isFreeUser,
     }
     
@@ -148,17 +129,6 @@ export async function generateArchitecturalDesign(
     // No fallback images - just return the error text as the "image"
     console.log("\n🔄 NO FALLBACK: Returning error text instead of placeholder images")
     
-    let descriptions = {
-      english: "Image generation failed. Please try again or contact support.",
-      sinhala: "රූප ජනනය අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න හෝ සහාය අමතන්න."
-    }
-    
-    try {
-      descriptions = await generateBilingualDescriptions(prompt)
-    } catch (descError) {
-      console.error("❌ Description generation also failed")
-    }
-    
     // Return the error message as the "image" URL (as text)
     const errorText = `Image Generation Failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     const errorImageUrl = `data:text/plain;base64,${Buffer.from(errorText).toString('base64')}`
@@ -168,8 +138,6 @@ export async function generateArchitecturalDesign(
     return {
       imageUrl: errorImageUrl,
       thumbnailUrl: errorImageUrl,
-      descriptionEn: descriptions.english,
-      descriptionSi: descriptions.sinhala,
       isWatermarked: isFreeUser,
     }
   }
@@ -316,123 +284,6 @@ async function generateArchitecturalImage(prompt: string): Promise<{imageUrl: st
     console.log("=".repeat(80))
     
     throw new Error(`Image generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  }
-}
-
-async function generateBilingualDescriptions(prompt: string): Promise<{english: string, sinhala: string}> {
-  console.log("\n" + "-".repeat(60))
-  console.log("📝 DESCRIPTION GENERATION: Starting bilingual description generation")
-  console.log("-".repeat(60))
-  
-  try {
-    console.log("🔑 Creating GoogleGenerativeAI instance for descriptions...")
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-    console.log("✅ GoogleGenerativeAI instance created")
-    
-    console.log("🤖 Getting model instance...")
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
-    console.log("✅ Model instance created: gemini-2.5-flash-image-preview")
-    
-    const descriptionPrompt = `
-    Based on this architectural design prompt: "${prompt}"
-    
-    Generate two concise descriptions (approximately 50 words each):
-    
-    1. English description: Write a professional, evocative description of the architectural design
-    2. Sinhala description: Write the same description in Sinhala, using natural contemporary style with commonly used English words where appropriate
-    
-    Format your response as:
-    ENGLISH: [description]
-    SINHALA: [description]
-    `
-    
-    console.log("\n📝 DESCRIPTION PROMPT TO SEND TO GEMINI:")
-    console.log("=".repeat(80))
-    console.log(descriptionPrompt)
-    console.log("=".repeat(80))
-    console.log("📏 Description prompt length:", descriptionPrompt.length, "characters")
-    
-    console.log("\n📤 Sending description request to Gemini API...")
-    console.log("⏱️ Request started at:", new Date().toISOString())
-    
-    const result = await model.generateContent(descriptionPrompt)
-    console.log("📥 Received response from Gemini API")
-    console.log("⏱️ Response received at:", new Date().toISOString())
-    
-    const response = await result.response
-    const text = response.text()
-    
-    console.log("\n📝 RAW RESPONSE FROM GEMINI:")
-    console.log("=".repeat(80))
-    console.log(text)
-    console.log("=".repeat(80))
-    console.log("Text length:", text.length, "characters")
-    
-    // Parse the response
-    console.log("\n🔍 Parsing response for English and Sinhala descriptions...")
-    const englishMatch = text.match(/ENGLISH:\s*([\s\S]+?)(?=SINHALA:|$)/)
-    const sinhalaMatch = text.match(/SINHALA:\s*([\s\S]+)$/)
-    
-    console.log("English match found:", !!englishMatch)
-    console.log("Sinhala match found:", !!sinhalaMatch)
-    
-    const english = englishMatch?.[1]?.trim() || "A beautiful architectural design featuring modern elements and thoughtful space planning."
-    const sinhala = sinhalaMatch?.[1]?.trim() || "අලංකාර ගෘහ නිර්මාණයක් යනු නවීන මූලද්‍රව්‍ය සහ සැලකිලිමත් අවකාශ සැලසුම් සහිতව ඉදිකරන ලද ගෘහයකි."
-    
-    console.log("\n✅ DESCRIPTION GENERATION SUCCESSFUL!")
-    console.log("🇬🇧 English description:", english)
-    console.log("🇱🇰 Sinhala description:", sinhala)
-    
-    return { english, sinhala }
-    
-  } catch (error) {
-    console.log("\n❌ DESCRIPTION GENERATION ERROR:")
-    console.log("=".repeat(80))
-    console.error("Error:", error)
-    console.error("Error message:", error instanceof Error ? error.message : String(error))
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
-    console.log("=".repeat(80))
-    
-    // Try fallback to previous model if the new one fails
-    try {
-      console.log("\n🔄 Trying fallback to gemini-2.5-flash-image-preview...")
-      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
-      
-      const fallbackPrompt = `
-      Based on this architectural design prompt: "${prompt}"
-      
-      Generate two concise descriptions (approximately 50 words each):
-      
-      1. English description: Write a professional, evocative description of the architectural design
-      2. Sinhala description: Write the same description in Sinhala, using natural contemporary style with commonly used English words where appropriate
-      
-      Format your response as:
-      ENGLISH: [description]
-      SINHALA: [description]
-      `
-      
-      const result = await fallbackModel.generateContent(fallbackPrompt)
-      const response = await result.response
-      const text = response.text()
-      
-      const englishMatch = text.match(/ENGLISH:\s*([\s\S]+?)(?=SINHALA:|$)/)
-      const sinhalaMatch = text.match(/SINHALA:\s*([\s\S]+)$/)
-      
-      const english = englishMatch?.[1]?.trim() || "A beautiful architectural design featuring modern elements and thoughtful space planning."
-      const sinhala = sinhalaMatch?.[1]?.trim() || "අලංකාර ගෘහ නිර්මාණයක් යනු නවීන මූලද්‍රව්‍ය සහ සැලකිලිමත් අවකාශ සැලසුම් සහිතව ඉදිකරන ලද ගෘහයකි."
-      
-      console.log("✅ Fallback successful")
-      return { english, sinhala }
-    } catch (fallbackError) {
-      console.error("❌ Fallback also failed:", fallbackError)
-    }
-    
-    console.log("🔄 Using hardcoded fallback descriptions")
-    return {
-      english: "A beautiful architectural design featuring modern elements and thoughtful space planning.",
-      sinhala: "අලංකාර ගෘහ නිර්මාණයක් යනු නවීන මූලද්‍රව්‍ය සහ සැලකිලිමත් අවකාශ සැලසුම් සහිතව ඉදිකරන ලද ගෘහයකි."
-    }
   }
 }
 

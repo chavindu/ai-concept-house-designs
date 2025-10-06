@@ -132,9 +132,6 @@ export function DesignCanvas() {
 
         {/* Design Info */}
         <div className="text-center space-y-2">
-          <p className="text-sm text-muted-foreground">
-            {generatedDesign.descriptionEn}
-          </p>
           <p className="text-xs text-muted-foreground">
             Remaining points: {generatedDesign.remainingPoints}
           </p>

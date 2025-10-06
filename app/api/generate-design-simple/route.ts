@@ -82,8 +82,6 @@ export async function POST(request: NextRequest) {
       success: true,
       imageUrl: "/ai-generated-house-design-concept.jpg",
       thumbnailUrl: "/ai-generated-house-design-concept.jpg",
-      descriptionEn: "A beautiful architectural design generated with AI",
-      descriptionSi: "AI භාවිතයෙන් ජනනය කරන ලද අලංකාර ගෘහ නිර්මාණයක්",
       isWatermarked: profile.points <= 10,
       prompt: "Mock prompt",
       designId: "mock-design-id",

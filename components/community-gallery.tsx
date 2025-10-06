@@ -13,8 +13,6 @@ interface GalleryItem {
   thumbnail_url: string
   title: string
   style: string
-  description_en: string
-  description_si: string
   is_watermarked: boolean
   likes_count: number
   views_count: number
@@ -41,13 +39,11 @@ export function CommunityGallery() {
         .select(`
           id,
           image_url,
-          thumbnail_url,
-          title,
-          style,
-          description_en,
-          description_si,
-          is_watermarked,
-          created_at
+        thumbnail_url,
+        title,
+        style,
+        is_watermarked,
+        created_at
         `)
         .eq("is_public", true)
         .eq("status", "completed")
@@ -75,8 +71,6 @@ export function CommunityGallery() {
         thumbnail_url: design.thumbnail_url || design.image_url || "/placeholder.svg",
         title: design.title || "Untitled Design",
         style: design.style || "Custom",
-        description_en: design.description_en || "A beautiful architectural design",
-        description_si: design.description_si || "අලංකාර ගෘහ නිර්මාණයක්",
         is_watermarked: design.is_watermarked || false,
         likes_count: Math.floor(Math.random() * 50), // TODO: Get real likes count
         views_count: Math.floor(Math.random() * 200), // TODO: Get real views count
@@ -102,8 +96,6 @@ export function CommunityGallery() {
       thumbnail_url: "/modern-house.png",
       title: "Modern Villa",
       style: "Contemporary",
-      description_en: "A stunning modern villa with clean lines and contemporary design",
-      description_si: "නවීන විලාවක් සහිත අලංකාර නවීන විලාවක්",
       is_watermarked: false,
       likes_count: 24,
       views_count: 156,
@@ -116,8 +108,6 @@ export function CommunityGallery() {
       thumbnail_url: "/traditional-sri-lankan-house.jpg",
       title: "Traditional House",
       style: "Sri Lankan",
-      description_en: "Traditional Sri Lankan architecture with modern amenities",
-      description_si: "නවීන සුවිශේෂීතා සහිත සම්ප්‍රදායික ශ්‍රී ලාංකික ගෘහ නිර්මාණය",
       is_watermarked: true,
       likes_count: 18,
       views_count: 89,
@@ -130,8 +120,6 @@ export function CommunityGallery() {
       thumbnail_url: "/contemporary-house.png",
       title: "Contemporary Design",
       style: "Modern",
-      description_en: "Contemporary house design with innovative features",
-      description_si: "නවෝත්පාදනීය විශේෂතා සහිත නවීන ගෘහ නිර්මාණය",
       is_watermarked: false,
       likes_count: 32,
       views_count: 203,
@@ -144,8 +132,6 @@ export function CommunityGallery() {
       thumbnail_url: "/minimalist-house.png",
       title: "Minimalist Home",
       style: "Minimalist",
-      description_en: "Clean minimalist design with focus on simplicity",
-      description_si: "සරලත්වය කෙරෙහි අවධානය යොමු කරන අලංකාර අවමවාදී නිර්මාණය",
       is_watermarked: true,
       likes_count: 41,
       views_count: 278,

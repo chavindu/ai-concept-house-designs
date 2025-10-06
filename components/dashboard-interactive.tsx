@@ -6,7 +6,6 @@ import { Download, Share2, Eye } from "lucide-react"
 interface Design {
   id: string
   title: string
-  description_en?: string
   prompt: string
   image_url?: string
   is_public: boolean
@@ -43,7 +42,7 @@ export function DashboardInteractive({ designs }: DashboardInteractiveProps) {
               if (navigator.share) {
                 navigator.share({
                   title: design.title || 'Generated Design',
-                  text: design.description_en || design.prompt,
+                  text: design.prompt,
                   url: window.location.href
                 });
               } else {
