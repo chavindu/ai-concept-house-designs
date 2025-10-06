@@ -69,12 +69,6 @@ ${styleTemplate.inspiration}
 Design Goal:
 To generate one design variation for a ${styleTemplate.styleName}. Each result must offer a unique interpretation of the brief by exploring ${styleTemplate.keyElements} while maintaining a cohesive and sophisticated design philosophy.
 
-Output Requirements:
-Bilingual Description: Each generated design must be accompanied by a concise, evocative description.
-• Length: Approximately 50 words for each language.
-• Languages: Provide the description in English / Sinhala
-• Sinhala Style: The Sinhala description should be written in a natural, contemporary style, incorporating commonly used English words where appropriate, reflecting modern spoken language.
-
 Output Image Angle: ${formData.perspective} perspective
 Time: Daytime
 
