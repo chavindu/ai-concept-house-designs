@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
         prompt: prompt,
         designId: design?.id,
         remainingPoints: profile.points - 1,
+        originalFormData: formData, // Include form data for regeneration
       })
     } catch (aiError) {
       console.error("AI generation failed:", aiError)

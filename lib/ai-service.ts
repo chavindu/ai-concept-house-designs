@@ -290,6 +290,223 @@ async function generateArchitecturalImage(prompt: string): Promise<{imageUrl: st
 // Rate limiting function
 const userGenerationCounts = new Map<string, { count: number, resetTime: number }>()
 
+export async function editArchitecturalDesignPerspective(
+  baseImageUrl: string,
+  newPerspective: string,
+  originalPrompt: string,
+  isFreeUser: boolean = false
+): Promise<AIGenerationResult> {
+  console.log("=".repeat(80))
+  console.log("🎨 STEP 1: Starting architectural design perspective editing")
+  console.log("=".repeat(80))
+  console.log("🖼️ Base image URL length:", baseImageUrl.length)
+  console.log("📐 New perspective:", newPerspective)
+  console.log("👤 User type:", isFreeUser ? "Free (watermarked)" : "Premium")
+  console.log("⏱️ Started at:", new Date().toISOString())
+  
+  try {
+    // STEP 2: Convert image URL to base64 if needed
+    console.log("\n" + "=".repeat(80))
+    console.log("🔄 STEP 2: Processing base image")
+    console.log("=".repeat(80))
+    
+    let base64ImageData: string
+    let mimeType = "image/png"
+    
+    if (baseImageUrl.startsWith('data:')) {
+      // Already a data URL, extract base64 part
+      const [header, data] = baseImageUrl.split(',')
+      base64ImageData = data
+      const mimeMatch = header.match(/data:([^;]+)/)
+      if (mimeMatch) {
+        mimeType = mimeMatch[1]
+      }
+      console.log("✅ Extracted base64 from data URL")
+    } else {
+      // Assume it's a blob URL or regular URL, we'll need to fetch and convert
+      console.log("⚠️ Non-data URL detected, attempting to fetch...")
+      try {
+        const response = await fetch(baseImageUrl)
+        const blob = await response.blob()
+        const arrayBuffer = await blob.arrayBuffer()
+        base64ImageData = Buffer.from(arrayBuffer).toString('base64')
+        mimeType = blob.type || "image/png"
+        console.log("✅ Fetched and converted to base64")
+      } catch (fetchError) {
+        console.error("❌ Failed to fetch image:", fetchError)
+        throw new Error("Failed to process base image for editing")
+      }
+    }
+    
+    console.log("📸 Image details:")
+    console.log("- MIME Type:", mimeType)
+    console.log("- Base64 length:", base64ImageData.length)
+    console.log("- Size:", (base64ImageData.length / 1024 / 1024).toFixed(2), "MB")
+    
+    // STEP 3: Create edit instruction
+    console.log("\n" + "=".repeat(80))
+    console.log("📝 STEP 3: Creating edit instruction")
+    console.log("=".repeat(80))
+    
+    const editInstruction = `Transform this architectural rendering to show a ${newPerspective} perspective view. Maintain all architectural features, materials, design elements, and styling exactly as shown. Only change the viewing angle to ${newPerspective}. Keep the same architectural style, colors, textures, and all structural elements.`
+    
+    console.log("📝 Edit instruction:", editInstruction)
+    
+    // STEP 4: Call Gemini API with multi-modal input
+    console.log("\n" + "=".repeat(80))
+    console.log("🤖 STEP 4: Calling Gemini API for image editing")
+    console.log("=".repeat(80))
+    
+    const apiKey = process.env.GOOGLE_AI_API_KEY
+    if (!apiKey) {
+      throw new Error("GOOGLE_AI_API_KEY environment variable is not set")
+    }
+    
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
+    
+    console.log("✅ Model instance created: gemini-2.5-flash-image-preview")
+    
+    // Retry policy: up to 3 attempts
+    const maxAttempts = 3
+    let editResult
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`\n🔁 Image editing attempt ${attempt}/${maxAttempts}`)
+        
+        const result = await Promise.race([
+          model.generateContent([
+            {
+              inlineData: {
+                data: base64ImageData,
+                mimeType: mimeType
+              }
+            },
+            editInstruction
+          ]),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Image editing timeout after 60 seconds')), 60000)
+          )
+        ])
+        
+        const response = await result.response
+        
+        // Check for images in response
+        if (response.candidates && response.candidates.length > 0) {
+          const candidate = response.candidates[0]
+          const images = candidate.content?.parts?.filter(part => part.inlineData)
+          
+          if (images && images.length > 0) {
+            console.log("🖼️ Found", images.length, "edited image(s)")
+            
+            const firstImage = images[0]
+            if (firstImage.inlineData) {
+              const imageData = firstImage.inlineData.data
+              const imageMimeType = firstImage.inlineData.mimeType || "image/png"
+              
+              console.log("📸 Edited image details:")
+              console.log("- MIME Type:", imageMimeType)
+              console.log("- Data Length:", imageData.length, "bytes")
+              console.log("- Data Size:", (imageData.length / 1024 / 1024).toFixed(2), "MB")
+              
+              // Create data URL for the edited image
+              const dataUrl = `data:${imageMimeType};base64,${imageData}`
+              
+              // Upload to Vercel Blob (same as generation)
+              try {
+                const blobResult = await uploadImageToBlob(dataUrl, imageMimeType, 'designs')
+                const thumbnailResult = await uploadThumbnailToBlob(dataUrl, imageMimeType, 'thumbnails')
+                
+                editResult = {
+                  imageUrl: blobResult.url,
+                  thumbnailUrl: thumbnailResult.url
+                }
+                
+                console.log("✅ Image uploaded to Vercel Blob successfully")
+                break
+              } catch (blobError) {
+                console.error("❌ Failed to upload to Vercel Blob:", blobError)
+                console.log("🔄 Falling back to base64 storage...")
+                
+                editResult = {
+                  imageUrl: dataUrl,
+                  thumbnailUrl: dataUrl
+                }
+                break
+              }
+            }
+          }
+        }
+        
+        // If no images found, check for text response
+        console.log("\n❌ NO IMAGES FOUND - Checking for text response...")
+        const text = response.text()
+        console.log("📝 TEXT RESPONSE FROM GEMINI:", text)
+        
+        // Return text as data URL
+        const textImageUrl = `data:text/plain;base64,${Buffer.from(text).toString('base64')}`
+        editResult = {
+          imageUrl: textImageUrl,
+          thumbnailUrl: textImageUrl
+        }
+        break
+        
+      } catch (editError) {
+        console.error("❌ Image editing error:", editError)
+        if (attempt < maxAttempts) {
+          const backoffMs = (attempt - 1) * 1000
+          console.log(`⏳ Retrying after ${backoffMs}ms`)
+          if (backoffMs > 0) {
+            await new Promise(res => setTimeout(res, backoffMs))
+          }
+          continue
+        }
+        throw editError
+      }
+    }
+    
+    if (!editResult) {
+      throw new Error('Image editing failed after retries')
+    }
+    
+    // STEP 5: Prepare final result
+    console.log("\n" + "=".repeat(80))
+    console.log("📦 STEP 5: Preparing final result")
+    console.log("=".repeat(80))
+    
+    const result = {
+      imageUrl: editResult.imageUrl,
+      thumbnailUrl: editResult.thumbnailUrl,
+      isWatermarked: isFreeUser,
+    }
+    
+    console.log("✅ Perspective editing completed successfully")
+    console.log("=".repeat(80))
+    console.log("🎉 EDITING COMPLETE!")
+    console.log("=".repeat(80))
+    
+    return result
+    
+  } catch (error) {
+    console.log("\n" + "=".repeat(80))
+    console.log("❌ PERSPECTIVE EDITING ERROR")
+    console.log("=".repeat(80))
+    console.error("Error details:", error)
+    console.error("Error message:", error instanceof Error ? error.message : String(error))
+    
+    // Return error text as image URL
+    const errorText = `Perspective Editing Failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    const errorImageUrl = `data:text/plain;base64,${Buffer.from(errorText).toString('base64')}`
+    
+    return {
+      imageUrl: errorImageUrl,
+      thumbnailUrl: errorImageUrl,
+      isWatermarked: isFreeUser,
+    }
+  }
+}
+
 export function checkGenerationLimit(userId: string): boolean {
   const now = Date.now()
   const userData = userGenerationCounts.get(userId)

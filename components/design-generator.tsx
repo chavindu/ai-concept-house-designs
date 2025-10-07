@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sparkles, Wand2, Plus, Minus, Loader2, CheckCircle2, ShieldAlert } from "lucide-react"
+import { Sparkles, Wand2, Plus, Minus, Loader2, CheckCircle2, ShieldAlert, RotateCcw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
@@ -117,7 +117,19 @@ export function DesignGenerator() {
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   // Use shared design context
-  const { isGenerating, setIsGenerating, setGeneratedDesign } = useDesign()
+  const { 
+    isGenerating, 
+    setIsGenerating, 
+    setGeneratedDesign, 
+    generatedDesign,
+    generatedPerspectives,
+    currentPerspective,
+    originalFormData,
+    setOriginalFormData,
+    setBaseImageForEditing,
+    addGeneratedPerspective,
+    clearAllPerspectives
+  } = useDesign()
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [currentStep, setCurrentStep] = useState<"validating" | "queued" | "generating" | "watermarking" | "saving" | "done">("validating")
@@ -295,6 +307,9 @@ export function DesignGenerator() {
       perspective,
     }
 
+    // Store form data and set base image for editing
+    setOriginalFormData(formData)
+
     try {
       console.log("🚀 Starting design generation...")
       console.log("Form data:", formData)
@@ -351,14 +366,28 @@ export function DesignGenerator() {
         
         // Update shared design context
         setCurrentStep(result?.isWatermarked ? "watermarking" : "saving")
-        setGeneratedDesign({
+        const designData = {
           imageUrl: result.imageUrl || "/ai-generated-house-design-concept.jpg",
           thumbnailUrl: result.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
           isWatermarked: result.isWatermarked || false,
           prompt: result.prompt || "Mock prompt",
           designId: result.designId,
           remainingPoints: result.remainingPoints || 0,
+          perspective: perspective
+        }
+        setGeneratedDesign(designData)
+        
+        // Store as base image for editing and add to perspectives cache
+        setBaseImageForEditing(designData.imageUrl)
+        addGeneratedPerspective(perspective, {
+          imageUrl: designData.imageUrl,
+          thumbnailUrl: designData.thumbnailUrl,
+          designId: result.designId,
+          isWatermarked: result.isWatermarked || false,
+          prompt: result.prompt || "Mock prompt",
+          remainingPoints: result.remainingPoints || 0
         })
+        
         setCurrentStep("done")
         
         // Auto-scroll to the canvas area
@@ -538,18 +567,122 @@ export function DesignGenerator() {
     )
   }
 
-  // Listen for perspective regeneration requests
-  useEffect(() => {
-    const handler = (e: any) => {
-      const newPerspective = e.detail?.perspective
-      if (!newPerspective) return
-      setPerspective(newPerspective)
-      // Trigger immediate regeneration with updated perspective
-      handleGenerate()
+  // Handle regenerate (creates new variation of current perspective)
+  const handleRegenerate = async () => {
+    if (!originalFormData) return
+    
+    // Use the current perspective for regeneration
+    const formData = {
+      ...originalFormData,
+      perspective: currentPerspective
     }
-    document.addEventListener('regenerate-with-perspective', handler as EventListener)
-    return () => document.removeEventListener('regenerate-with-perspective', handler as EventListener)
-  }, [selectedStyle, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, buildingType])
+    
+    setIsGenerating(true)
+    setGenerationStartedAt(Date.now())
+    setElapsedSeconds(0)
+    setCurrentStep("validating")
+
+    try {
+      console.log("🔄 Starting regeneration...")
+      console.log("Form data:", formData)
+      setError(null)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        console.log("❌ No session found, showing auth modal")
+        setShowAuthModal(true)
+        return
+      }
+
+      const controller = new AbortController()
+      controllerRef.current = controller
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        console.log("⏰ Request timed out after 120 seconds")
+      }, 120000)
+      
+      setCurrentStep("queued")
+      const response = await fetch("/api/generate-design", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(formData),
+        signal: controller.signal,
+      })
+      
+      clearTimeout(timeoutId)
+
+      console.log("📥 Response received:", response.status, response.statusText)
+
+      setCurrentStep("generating")
+      if (response.ok) {
+        const result = await response.json()
+        console.log("✅ Regeneration success:", result)
+        
+        setCurrentStep(result?.isWatermarked ? "watermarking" : "saving")
+        const designData = {
+          imageUrl: result.imageUrl || "/ai-generated-house-design-concept.jpg",
+          thumbnailUrl: result.thumbnailUrl || "/ai-generated-house-design-concept.jpg",
+          isWatermarked: result.isWatermarked || false,
+          prompt: result.prompt || "Mock prompt",
+          designId: result.designId,
+          remainingPoints: result.remainingPoints || 0,
+          perspective: currentPerspective
+        }
+        setGeneratedDesign(designData)
+        
+        // Update the perspective in cache with new variation
+        addGeneratedPerspective(currentPerspective, {
+          imageUrl: designData.imageUrl,
+          thumbnailUrl: designData.thumbnailUrl,
+          designId: result.designId,
+          isWatermarked: result.isWatermarked || false,
+          prompt: result.prompt || "Mock prompt",
+          remainingPoints: result.remainingPoints || 0
+        })
+        
+        setCurrentStep("done")
+        
+        // Auto-scroll to the canvas area
+        setTimeout(() => {
+          const canvasElement = document.getElementById('design-canvas')
+          if (canvasElement) {
+            canvasElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }, 100)
+      } else {
+        const errorData = await response.json()
+        console.error("❌ Regeneration error response:", errorData)
+        setError(errorData.error || "Regeneration failed. Please try again.")
+      }
+    } catch (error) {
+      console.error("❌ Regeneration failed:", error)
+      if (error instanceof Error && error.name === 'AbortError') {
+        setError("Regeneration timed out after 2 minutes. Please try again.")
+      } else {
+        setError(`Regeneration failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      }
+    } finally {
+      console.log("🏁 Regeneration process completed")
+      setIsGenerating(false)
+      controllerRef.current = null
+    }
+  }
+
+  // Handle reset (clear all perspectives and start fresh)
+  const handleReset = () => {
+    clearAllPerspectives()
+    setError(null)
+    // Auto-scroll to top
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
+  }
 
 
   return (
@@ -813,26 +946,61 @@ export function DesignGenerator() {
 
       {/* Perspective moved to canvas controls */}
 
-      {/* Generate Button */}
-      <div className="flex justify-center">
-        <Button
-          onClick={handleGenerate}
-          disabled={!selectedStyle || isGenerating || loading}
-          size="lg"
-          className="px-8 py-3 text-lg"
-        >
-          {isGenerating ? (
-            <>
-              <Wand2 className="mr-2 h-5 w-5 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-5 w-5" />
-              Generate Design (1 Point)
-            </>
-          )}
-        </Button>
+      {/* Generate/Regenerate Buttons */}
+      <div className="flex justify-center gap-4">
+        {!generatedDesign ? (
+          // Show Generate button when no design exists
+          <Button
+            onClick={handleGenerate}
+            disabled={!selectedStyle || isGenerating || loading}
+            size="lg"
+            className="px-8 py-3 text-lg"
+          >
+            {isGenerating ? (
+              <>
+                <Wand2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Generate Design (1 Point)
+              </>
+            )}
+          </Button>
+        ) : (
+          // Show Regenerate and Reset buttons after generation
+          <>
+            <Button
+              onClick={handleRegenerate}
+              disabled={isGenerating || loading}
+              size="lg"
+              className="px-8 py-3 text-lg"
+            >
+              {isGenerating ? (
+                <>
+                  <Wand2 className="mr-2 h-5 w-5 animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="mr-2 h-5 w-5" />
+                  Regenerate (1 Point)
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleReset}
+              disabled={isGenerating || loading}
+              variant="outline"
+              size="lg"
+              className="px-8 py-3 text-lg"
+            >
+              <RotateCcw className="mr-2 h-5 w-5" />
+              Reset
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Error Display */}

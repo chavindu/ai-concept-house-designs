@@ -3,36 +3,193 @@
 import { useDesign } from "@/lib/design-context"
 import { Button } from "@/components/ui/button"
 import { Download, Share2, RotateCcw } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export function DesignCanvas() {
-  const { generatedDesign, isGenerating } = useDesign()
-  const [currentPerspective, setCurrentPerspective] = useState<'front' | 'front-left' | 'front-right'>('front')
+  const { 
+    generatedDesign, 
+    isGenerating, 
+    generatedPerspectives, 
+    currentPerspective, 
+    switchPerspective,
+    addGeneratedPerspective,
+    baseImageForEditing,
+    originalFormData
+  } = useDesign()
+  const [isEditingPerspective, setIsEditingPerspective] = useState(false)
+  const [timerText, setTimerText] = useState("0.00")
+  const rafRef = useRef<number | null>(null)
+  const startRef = useRef<number | null>(null)
+
+  // High-resolution timer shown during generation or perspective editing
+  useEffect(() => {
+    const isActive = isGenerating || isEditingPerspective
+    if (!isActive) {
+      // Stop and reset when not active
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+      startRef.current = null
+      setTimerText("0.00")
+      return
+    }
+
+    const tick = (now: number) => {
+      if (startRef.current == null) startRef.current = now
+      const elapsedMs = Math.max(0, now - startRef.current)
+      const seconds = elapsedMs / 1000
+      // Format as S.MS with two decimals
+      setTimerText(seconds.toFixed(2))
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+  }, [isGenerating, isEditingPerspective])
+
+  const handlePerspectiveClick = async (perspective: string) => {
+    // If perspective is already generated, just switch to it
+    if (generatedPerspectives[perspective as keyof typeof generatedPerspectives]) {
+      switchPerspective(perspective)
+      return
+    }
+
+    // If not generated, need to edit the base image
+    if (!baseImageForEditing || !originalFormData) {
+      console.error("Missing base image or form data for perspective editing")
+      return
+    }
+
+    setIsEditingPerspective(true)
+
+    try {
+      // Get session token
+      const { createClient } = await import("@/lib/supabase/client")
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        console.error("No session found")
+        return
+      }
+
+      const response = await fetch("/api/edit-design-perspective", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          baseImageUrl: baseImageForEditing,
+          newPerspective: perspective,
+          originalFormData: originalFormData
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        // Add the new perspective to cache
+        addGeneratedPerspective(perspective, {
+          imageUrl: result.imageUrl,
+          thumbnailUrl: result.thumbnailUrl,
+          designId: result.designId,
+          isWatermarked: result.isWatermarked,
+          prompt: originalFormData.perspective,
+          remainingPoints: result.remainingPoints
+        })
+
+        // Switch to the new perspective
+        switchPerspective(perspective)
+      } else {
+        const errorData = await response.json()
+        console.error("Perspective editing failed:", errorData.error)
+        // TODO: Show error message to user
+      }
+    } catch (error) {
+      console.error("Perspective editing error:", error)
+      // TODO: Show error message to user
+    } finally {
+      setIsEditingPerspective(false)
+    }
+  }
 
   if (isGenerating) {
     return (
       <div id="design-canvas" className="space-y-4">
-        <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-lg mx-auto flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-            <div>
-              <p className="text-lg font-medium">Generating your design...</p>
-              <p className="text-sm text-muted-foreground">This may take a few moments</p>
-            </div>
+        <div className="aspect-square rounded-lg overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+          <div className="text-center" role="status" aria-live="polite">
+            <div className="text-sm text-muted-foreground mb-1">Generating…</div>
+            <div className="text-5xl font-semibold tabular-nums">{timerText}</div>
           </div>
         </div>
         {/* Keep buttons consistently below the canvas while generating */}
         <div className="flex flex-wrap gap-2 justify-center">
-          <Button variant={currentPerspective === 'front-left' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-left'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-left' } })) }}>
-            Front-Left View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front-left' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-left')}
+          >
+            {generatedPerspectives['front-left'] ? 'Front-Left View (Generated)' : 'Front-Left View (1 Point)'}
           </Button>
-          <Button variant={currentPerspective === 'front' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front' } })) }}>
-            Front View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front')}
+          >
+            {generatedPerspectives['front'] ? 'Front View (Generated)' : 'Front View (1 Point)'}
           </Button>
-          <Button variant={currentPerspective === 'front-right' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-right'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-right' } })) }}>
-            Front-Right View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front-right' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-right')}
+          >
+            {generatedPerspectives['front-right'] ? 'Front-Right View (Generated)' : 'Front-Right View (1 Point)'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isEditingPerspective) {
+    return (
+      <div id="design-canvas" className="space-y-4">
+        <div className="aspect-square rounded-lg overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+          <div className="text-center" role="status" aria-live="polite">
+            <div className="text-sm text-muted-foreground mb-1">Editing…</div>
+            <div className="text-5xl font-semibold tabular-nums">{timerText}</div>
+          </div>
+        </div>
+        {/* Keep buttons consistently below the canvas while editing */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          <Button 
+            variant={currentPerspective === 'front-left' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-left')}
+          >
+            {generatedPerspectives['front-left'] ? 'Front-Left View (Generated)' : 'Front-Left View (1 Point)'}
+          </Button>
+          <Button 
+            variant={currentPerspective === 'front' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front')}
+          >
+            {generatedPerspectives['front'] ? 'Front View (Generated)' : 'Front View (1 Point)'}
+          </Button>
+          <Button 
+            variant={currentPerspective === 'front-right' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-right')}
+          >
+            {generatedPerspectives['front-right'] ? 'Front-Right View (Generated)' : 'Front-Right View (1 Point)'}
           </Button>
         </div>
       </div>
@@ -80,14 +237,29 @@ export function DesignCanvas() {
 
         {/* Perspective Buttons under canvas */}
         <div className="flex flex-wrap gap-2 justify-center">
-          <Button variant={currentPerspective === 'front-left' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-left'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-left' } })) }}>
-            Front-Left View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front-left' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-left')}
+          >
+            {generatedPerspectives['front-left'] ? 'Front-Left View (Generated)' : 'Front-Left View (1 Point)'}
           </Button>
-          <Button variant={currentPerspective === 'front' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front' } })) }}>
-            Front View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front')}
+          >
+            {generatedPerspectives['front'] ? 'Front View (Generated)' : 'Front View (1 Point)'}
           </Button>
-          <Button variant={currentPerspective === 'front-right' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-right'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-right' } })) }}>
-            Front-Right View (1 Point)
+          <Button 
+            variant={currentPerspective === 'front-right' ? 'default' : 'outline'} 
+            size="sm" 
+            disabled={isEditingPerspective}
+            onClick={() => handlePerspectiveClick('front-right')}
+          >
+            {generatedPerspectives['front-right'] ? 'Front-Right View (Generated)' : 'Front-Right View (1 Point)'}
           </Button>
         </div>
 
@@ -124,10 +296,6 @@ export function DesignCanvas() {
               </Button>
             </>
           )}
-          <Button variant="outline" size="sm">
-            <RotateCcw className="h-4 w-4 mr-2" />
-            {isTextContent ? "Try Again (1 Point)" : "Regenerate (1 Point)"}
-          </Button>
         </div>
 
         {/* Design Info */}
@@ -159,14 +327,29 @@ export function DesignCanvas() {
         </div>
       </div>
       <div className="flex flex-wrap gap-2 justify-center">
-        <Button variant={currentPerspective === 'front-left' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-left'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-left' } })) }}>
-          Front-Left View (1 Point)
+        <Button 
+          variant={currentPerspective === 'front-left' ? 'default' : 'outline'} 
+          size="sm" 
+          disabled={isEditingPerspective}
+          onClick={() => handlePerspectiveClick('front-left')}
+        >
+          {generatedPerspectives['front-left'] ? 'Front-Left View (Generated)' : 'Front-Left View (1 Point)'}
         </Button>
-        <Button variant={currentPerspective === 'front' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front' } })) }}>
-          Front View (1 Point)
+        <Button 
+          variant={currentPerspective === 'front' ? 'default' : 'outline'} 
+          size="sm" 
+          disabled={isEditingPerspective}
+          onClick={() => handlePerspectiveClick('front')}
+        >
+          {generatedPerspectives['front'] ? 'Front View (Generated)' : 'Front View (1 Point)'}
         </Button>
-        <Button variant={currentPerspective === 'front-right' ? 'default' : 'outline'} size="sm" onClick={() => { setCurrentPerspective('front-right'); document.dispatchEvent(new CustomEvent('regenerate-with-perspective', { detail: { perspective: 'front-right' } })) }}>
-          Front-Right View (1 Point)
+        <Button 
+          variant={currentPerspective === 'front-right' ? 'default' : 'outline'} 
+          size="sm" 
+          disabled={isEditingPerspective}
+          onClick={() => handlePerspectiveClick('front-right')}
+        >
+          {generatedPerspectives['front-right'] ? 'Front-Right View (Generated)' : 'Front-Right View (1 Point)'}
         </Button>
       </div>
     </div>
