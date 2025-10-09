@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -88,7 +87,6 @@ export function DesignGenerator() {
   // Form state
   const [buildingType, setBuildingType] = useState("residential")
   const [selectedStyle, setSelectedStyle] = useState("")
-  const [styleIndex, setStyleIndex] = useState(0)
   const [landSize, setLandSize] = useState(10)
   const [landUnit, setLandUnit] = useState("perches")
 
@@ -122,7 +120,6 @@ export function DesignGenerator() {
     setIsGenerating, 
     setGeneratedDesign, 
     generatedDesign,
-    generatedPerspectives,
     currentPerspective,
     originalFormData,
     setOriginalFormData,
@@ -142,7 +139,6 @@ export function DesignGenerator() {
     { en: "Blend local materials with modern forms.", si: "දේශීය ද්‍රව්‍ය නූතන හැඩතල සමඟ මිශ්‍ර කරන්න." },
     { en: "Add courtyards for tropical ventilation.", si: "උෂ්ණ වාතායනය සඳහා ඇඟෙවල් එක් කරන්න." },
   ]
-  const [tipIndex, setTipIndex] = useState(0)
   const galleryImages = [
     "/modern-house.png",
     "/contemporary-house.png",
@@ -160,7 +156,6 @@ export function DesignGenerator() {
     const formState = {
       buildingType,
       selectedStyle,
-      styleIndex,
       landSize,
       landUnit,
       floors,
@@ -180,7 +175,6 @@ export function DesignGenerator() {
         const formState = JSON.parse(saved)
         setBuildingType(formState.buildingType || "residential")
         setSelectedStyle(formState.selectedStyle || "")
-        setStyleIndex(formState.styleIndex || 0)
         setLandSize(formState.landSize || 10)
         setLandUnit(formState.landUnit || "perches")
         setFloors(formState.floors || [{
@@ -249,7 +243,7 @@ export function DesignGenerator() {
   // Save form state whenever any form field changes
   useEffect(() => {
     saveFormState()
-  }, [buildingType, selectedStyle, styleIndex, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, perspective])
+  }, [buildingType, selectedStyle, landSize, landUnit, floors, hasPool, hasBalcony, hasTerrace, perspective])
 
 
   const addFloor = () => {
@@ -311,37 +305,22 @@ export function DesignGenerator() {
     setOriginalFormData(formData)
 
     try {
-      console.log("🚀 Starting design generation...")
-      console.log("Form data:", formData)
       setError(null) // Clear any previous errors
 
       // Get the session token
-      console.log("🔍 Checking session...")
       const { data: { session } } = await supabase.auth.getSession()
-      console.log("✅ Session check completed")
-      console.log("Session exists:", !!session)
-      console.log("Access token exists:", !!session?.access_token)
-      console.log("Access token preview:", session?.access_token ? `${session.access_token.substring(0, 20)}...` : "NO TOKEN")
       
       if (!session?.access_token) {
-        console.log("❌ No session found, showing auth modal")
         setShowAuthModal(true)
         return
       }
 
-      console.log("📤 Sending request to API...")
-      
       // Create an AbortController for timeout/cancel
       const controller = new AbortController()
       controllerRef.current = controller
       const timeoutId = setTimeout(() => {
         controller.abort()
-        console.log("⏰ Request timed out after 120 seconds")
       }, 120000) // 2 minutes timeout
-      
-      console.log("📤 Making API call to /api/generate-design")
-      console.log("🔑 Using token:", session.access_token.substring(0, 20) + "...")
-      console.log("📋 Sending form data:", formData)
       
       setCurrentStep("queued")
       const response = await fetch("/api/generate-design", {
@@ -357,12 +336,10 @@ export function DesignGenerator() {
       // Clear the timeout if request completes
       clearTimeout(timeoutId)
 
-      console.log("📥 Response received:", response.status, response.statusText)
 
       setCurrentStep("generating")
       if (response.ok) {
         const result = await response.json()
-        console.log("✅ Success response:", result)
         
         // Update shared design context
         setCurrentStep(result?.isWatermarked ? "watermarking" : "saving")
@@ -402,7 +379,6 @@ export function DesignGenerator() {
         }, 100)
       } else {
         const errorData = await response.json()
-        console.error("❌ Error response:", errorData)
         setError(errorData.error || "Generation failed. Please try again.")
         // Auto-scroll to error message
         setTimeout(() => {
@@ -416,10 +392,7 @@ export function DesignGenerator() {
         }, 100)
       }
     } catch (error) {
-      console.error("❌ Generation failed:", error)
-      console.error("Error details:", error)
-      console.error("Error message:", error instanceof Error ? error.message : String(error))
-      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
+      console.error("Generation failed:", error)
       
       if (error instanceof Error && error.name === 'AbortError') {
         setError("Generation timed out after 2 minutes. Please try again.")
@@ -437,7 +410,6 @@ export function DesignGenerator() {
         }
       }, 100)
     } finally {
-      console.log("🏁 Design generation process completed")
       setIsGenerating(false)
       controllerRef.current = null
     }
@@ -515,8 +487,8 @@ export function DesignGenerator() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
           <Card className="p-3">
             <div className="text-xs font-semibold mb-1">Design Tip</div>
-            <p className="text-xs"><span className="font-medium">EN:</span> {tips[tipIndex].en}</p>
-            <p className="text-xs text-muted-foreground"><span className="font-medium">SI:</span> {tips[tipIndex].si}</p>
+            <p className="text-xs"><span className="font-medium">EN:</span> {tips[0].en}</p>
+            <p className="text-xs text-muted-foreground"><span className="font-medium">SI:</span> {tips[0].si}</p>
           </Card>
           <Card className="p-3 md:col-span-2">
             <div className="text-xs font-semibold mb-2">From the community</div>
@@ -583,13 +555,10 @@ export function DesignGenerator() {
     setCurrentStep("validating")
 
     try {
-      console.log("🔄 Starting regeneration...")
-      console.log("Form data:", formData)
       setError(null)
 
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) {
-        console.log("❌ No session found, showing auth modal")
         setShowAuthModal(true)
         return
       }
@@ -598,7 +567,6 @@ export function DesignGenerator() {
       controllerRef.current = controller
       const timeoutId = setTimeout(() => {
         controller.abort()
-        console.log("⏰ Request timed out after 120 seconds")
       }, 120000)
       
       setCurrentStep("queued")
@@ -614,12 +582,10 @@ export function DesignGenerator() {
       
       clearTimeout(timeoutId)
 
-      console.log("📥 Response received:", response.status, response.statusText)
 
       setCurrentStep("generating")
       if (response.ok) {
         const result = await response.json()
-        console.log("✅ Regeneration success:", result)
         
         setCurrentStep(result?.isWatermarked ? "watermarking" : "saving")
         const designData = {
@@ -657,18 +623,16 @@ export function DesignGenerator() {
         }, 100)
       } else {
         const errorData = await response.json()
-        console.error("❌ Regeneration error response:", errorData)
         setError(errorData.error || "Regeneration failed. Please try again.")
       }
     } catch (error) {
-      console.error("❌ Regeneration failed:", error)
+      console.error("Regeneration failed:", error)
       if (error instanceof Error && error.name === 'AbortError') {
         setError("Regeneration timed out after 2 minutes. Please try again.")
       } else {
         setError(`Regeneration failed: ${error instanceof Error ? error.message : "Unknown error"}`)
       }
     } finally {
-      console.log("🏁 Regeneration process completed")
       setIsGenerating(false)
       controllerRef.current = null
     }
@@ -712,7 +676,6 @@ export function DesignGenerator() {
               }`}
               onClick={() => {
                 setSelectedStyle(style.id)
-                setStyleIndex(index)
               }}
             >
               <div className="w-full aspect-square rounded mb-2 overflow-hidden">
@@ -944,7 +907,22 @@ export function DesignGenerator() {
         </div>
       </div>
 
-      {/* Perspective moved to canvas controls */}
+      {/* Perspective Selection */}
+      <div className="space-y-2">
+        <Label className="text-base font-semibold">View Perspective</Label>
+        <Select value={perspective} onValueChange={setPerspective}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {perspectives.map((perspective) => (
+              <SelectItem key={perspective.value} value={perspective.value}>
+                {perspective.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Generate/Regenerate Buttons */}
       <div className="flex justify-center gap-4">
