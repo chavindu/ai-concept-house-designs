@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/database/client'
+import { verifyAuthFromCookies } from '@/lib/auth/session'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
+    console.log('API: User transactions request received')
+    
+    // Try cookie-based auth first
+    const auth = await verifyAuthFromCookies(request)
+    console.log('API: Auth from cookies:', auth ? 'success' : 'failed')
+
+    let userId = request.headers.get('x-user-id')
+    if (!userId && auth?.user?.id) {
+      userId = auth.user.id
+    }
+
+    console.log('API: User ID:', userId)
 
     if (!userId) {
+      console.log('API: No user ID found')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
@@ -20,6 +33,8 @@ export async function GET(request: NextRequest) {
        LIMIT 10`,
       [userId]
     )
+
+    console.log('API: Found transactions:', transactionsResult.rows.length)
 
     return NextResponse.json({
       transactions: transactionsResult.rows

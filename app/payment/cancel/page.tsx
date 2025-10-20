@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { XCircle, ArrowLeft, CreditCard } from "lucide-react"
+import { usePricingModal } from "@/lib/pricing-modal-context"
 
 export default function PaymentCancelPage() {
   const router = useRouter()
+  const { openModal: openPricingModal } = usePricingModal()
 
   return (
     <div className="min-h-screen bg-background">
@@ -30,7 +32,7 @@ export default function PaymentCancelPage() {
               </div>
 
               <div className="space-y-3">
-                <Button className="w-full" onClick={() => router.push("/pricing")}>
+                <Button className="w-full" onClick={openPricingModal}>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>

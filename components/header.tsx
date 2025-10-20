@@ -16,9 +16,11 @@ import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { AuthModal } from "@/components/auth-modal"
+import { usePricingModal } from "@/lib/pricing-modal-context"
 
 export function Header() {
   const { user, loading, logout } = useAuth()
+  const { openModal: openPricingModal } = usePricingModal()
   const [language, setLanguage] = useState<"EN" | "SI">("EN")
   const [userPoints, setUserPoints] = useState<number>(0)
   const [canClaimDaily, setCanClaimDaily] = useState(false)
@@ -40,11 +42,14 @@ export function Header() {
 
       if (response.ok) {
         const data = await response.json()
-        setUserPoints(data.points)
+        console.log('Header: Fetched user profile data:', data)
+        setUserPoints(data.points || 0)
         
         // Check if user can claim daily points
         const today = new Date().toISOString().split('T')[0]
         setCanClaimDaily(data.daily_points_claimed !== today)
+      } else {
+        console.error('Header: Failed to fetch user profile:', response.status, response.statusText)
       }
     } catch (error) {
       console.error("Error fetching user points:", error)
@@ -152,7 +157,7 @@ export function Header() {
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/pricing")}>
+                  <DropdownMenuItem onClick={openPricingModal}>
                     <CreditCard className="h-4 w-4 mr-2" />
                     Buy Points
                   </DropdownMenuItem>
@@ -202,6 +207,7 @@ export function Header() {
           }
         }}
       />
+      
     </header>
   )
 }

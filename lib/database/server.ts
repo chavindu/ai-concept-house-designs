@@ -89,13 +89,32 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 
-export async function getUserWithProfile(email: string): Promise<UserWithProfile | null> {
+export async function ensureUserProfile(userId: string): Promise<void> {
+  // Check if profile exists, if not create one
+  const profileCheck = await query(
+    'SELECT id FROM profiles WHERE id = $1',
+    [userId]
+  )
+  
+  if (profileCheck.rows.length === 0) {
+    // Create profile with default points
+    await query(
+      'INSERT INTO profiles (id, points) VALUES ($1, 10)',
+      [userId]
+    )
+  }
+}
+
+export async function getUserWithProfile(userId: string): Promise<UserWithProfile | null> {
+  // Ensure user has a profile
+  await ensureUserProfile(userId)
+  
   const result = await query<UserWithProfile>(
-    `SELECT u.*, p.points, p.daily_points_claimed
+    `SELECT u.*, COALESCE(p.points, 0) as points, p.daily_points_claimed
      FROM users u
      LEFT JOIN profiles p ON u.id = p.id
-     WHERE u.email = $1`,
-    [email]
+     WHERE u.id = $1`,
+    [userId]
   )
   
   return result.rows[0] || null

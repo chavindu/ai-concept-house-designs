@@ -8,6 +8,7 @@ interface Design {
   title: string
   prompt: string
   image_url?: string
+  thumbnail_url?: string
   is_public: boolean
 }
 
@@ -23,12 +24,33 @@ export function DashboardInteractive({ designs }: DashboardInteractiveProps) {
           <Button 
             size="sm" 
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               if (design.image_url) {
-                const link = document.createElement('a');
-                link.href = design.image_url;
-                link.download = `${design.title || 'design'}-${design.id}.png`;
-                link.click();
+                try {
+                  // Fetch the image as a blob
+                  const response = await fetch(design.image_url);
+                  const blob = await response.blob();
+                  
+                  // Create a download link
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `${design.title || 'design'}-${design.id}.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  
+                  // Cleanup
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('Download failed:', error);
+                  // Fallback to direct link
+                  const link = document.createElement('a');
+                  link.href = design.image_url;
+                  link.download = `${design.title || 'design'}-${design.id}.png`;
+                  link.target = '_blank';
+                  link.click();
+                }
               }
             }}
           >

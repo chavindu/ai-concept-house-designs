@@ -17,6 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
+    // Determine points based on package type
+    let points = 0
+    if (packageType === "starter") {
+      points = 5
+    } else if (packageType === "popular") {
+      points = 10
+    } else if (packageType === "professional") {
+      points = 25
+    }
+    // For design packages (when designId is provided), points remain 0
+
     // Create payment record in database
     const paymentResult = await query(
       `INSERT INTO payments (user_id, amount, currency, points, payment_method, payment_id, status, payhere_order_id)
@@ -26,7 +37,7 @@ export async function POST(request: NextRequest) {
         userId,
         amount, // Amount in LKR (decimal)
         "LKR",
-        0, // Design packages don't give points
+        points, // Points based on package type
         "payhere",
         `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique payment ID
         "pending",

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
 import { AuthModal } from "@/components/auth-modal"
 import { useAuth } from "@/lib/auth/auth-context"
+import { usePricingModal } from "@/lib/pricing-modal-context"
 
 const architecturalStyles = [
   {
@@ -83,6 +84,8 @@ interface FloorConfig {
 }
 
 export function DesignGenerator() {
+  const { openModal: openPricingModal } = usePricingModal()
+  
   // Form state
   const [buildingType, setBuildingType] = useState("residential")
   const [selectedStyle, setSelectedStyle] = useState("")
@@ -493,7 +496,7 @@ export function DesignGenerator() {
                 <div className="text-muted-foreground">Free users may see a small watermark.</div>
               )}
             </div>
-            <Button size="sm" variant="outline" onClick={() => router.push("/pricing")}>Get more points</Button>
+            <Button size="sm" variant="outline" onClick={openPricingModal}>Get more points</Button>
           </div>
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth/auth-context"
+import { usePricingModal } from "@/lib/pricing-modal-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Coins, Calendar, CreditCard, Sparkles, Eye } from "lucide-react"
 import { DashboardInteractive } from "@/components/dashboard-interactive"
+import { ImageModal } from "@/components/image-modal"
 import { useRouter } from "next/navigation"
 
 interface Design {
@@ -19,6 +21,11 @@ interface Design {
   status: string
   created_at: string
   is_watermarked: boolean
+  prompt?: string
+  style?: string
+  building_type?: string
+  is_public?: boolean
+  perspective?: string
 }
 
 interface Transaction {
@@ -31,11 +38,13 @@ interface Transaction {
 
 export default function DashboardPage() {
   const { user, loading } = useAuth()
+  const { openModal: openPricingModal } = usePricingModal()
   const router = useRouter()
   const [designs, setDesigns] = useState<Design[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedImage, setSelectedImage] = useState<{ url: string; title: string; id: string } | null>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -68,6 +77,7 @@ export default function DashboardPage() {
         
         if (designsResponse.ok) {
           const designsData = await designsResponse.json()
+          console.log('Dashboard: Designs data received:', designsData.designs)
           setDesigns(designsData.designs || [])
         }
         
@@ -140,11 +150,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Card>
-            <Button asChild className="flex items-center gap-2">
-              <a href="/pricing">
-                <CreditCard className="h-4 w-4" />
-                Buy Points
-              </a>
+            <Button onClick={openPricingModal} className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Buy Points
             </Button>
           </div>
         </div>
@@ -223,19 +231,42 @@ export default function DashboardPage() {
                 {designs.map((design) => (
                   <Card key={design.id} className="overflow-hidden">
                     <div className="flex flex-col md:flex-row">
-                      {/* Image Preview */}
-                      <div className="md:w-64 md:h-48 w-full h-48 bg-muted flex-shrink-0">
-                        {design.image_url ? (
+                      {/* Thumbnail Preview */}
+                      <div 
+                        className="md:w-64 md:h-48 w-full h-48 bg-muted flex-shrink-0 cursor-pointer group relative overflow-hidden rounded-l-lg"
+                        onClick={() => {
+                          console.log('Thumbnail clicked, design:', design)
+                          if (design.image_url) {
+                            setSelectedImage({
+                              url: design.image_url,
+                              title: design.title || "Generated Design",
+                              id: design.id
+                            })
+                          }
+                        }}
+                      >
+                        {(design.thumbnail_url || design.image_url) ? (
                           <img
-                            src={design.image_url || "/placeholder.svg"}
+                            src={design.thumbnail_url || design.image_url}
                             alt={design.title || "Generated design"}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            onError={(e) => {
+                              console.log('Image failed to load:', e.target.src)
+                              // Fallback to placeholder if image fails to load
+                              e.target.src = "/placeholder.svg"
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             <Sparkles className="h-8 w-8" />
                           </div>
                         )}
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <Eye className="h-6 w-6 text-white" />
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Content */}
@@ -401,6 +432,20 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        
+        {/* Image Modal */}
+        {selectedImage && (
+          <ImageModal
+            isOpen={!!selectedImage}
+            onClose={() => {
+              console.log('Closing modal')
+              setSelectedImage(null)
+            }}
+            imageUrl={selectedImage.url}
+            title={selectedImage.title}
+            designId={selectedImage.id}
+          />
+        )}
     </div>
   )
 }
