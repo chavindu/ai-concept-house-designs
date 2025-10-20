@@ -65,22 +65,15 @@ export function DesignCanvas() {
     setIsEditingPerspective(true)
 
     try {
-      // Get session token
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
-        console.error("No session found")
-        return
-      }
+      // Check authentication (handled by API route)
+      console.log("Starting perspective edit...")
 
       const response = await fetch("/api/edit-design-perspective", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           baseImageUrl: baseImageForEditing,
           newPerspective: perspective,

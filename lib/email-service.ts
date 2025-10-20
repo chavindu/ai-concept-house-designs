@@ -8,7 +8,7 @@ interface EmailOptions {
 }
 
 // Configure email transporter (Microsoft O365 SMTP as per spec)
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.office365.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: false,

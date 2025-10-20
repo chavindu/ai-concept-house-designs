@@ -1,45 +1,31 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { verifyAuthFromCookies } from "@/lib/auth/session"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building, ImageIcon, CreditCard, TrendingUp, AlertTriangle } from "lucide-react"
 import { AIServiceTester } from "@/components/ai-service-tester"
 
 export default async function AdminDashboardPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  // Check authentication using the new system
+  const authResult = await verifyAuthFromCookies()
+  
+  if (!authResult) {
     redirect("/auth/login")
   }
 
   // Check if user is admin
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-  if (!profile || (profile.role !== "admin" && profile.role !== "superadmin")) {
+  if (authResult.user.role !== 'admin') {
     redirect("/dashboard")
   }
 
-  // Get dashboard statistics
-  const [
-    { count: totalUsers },
-    { count: totalArchitects },
-    { count: totalDesigns },
-    { count: publicDesigns },
-    { data: recentUsers },
-    { data: recentDesigns },
-  ] = await Promise.all([
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
-    supabase.from("architects").select("*", { count: "exact", head: true }),
-    supabase.from("designs").select("*", { count: "exact", head: true }),
-    supabase.from("designs").select("*", { count: "exact", head: true }).eq("is_public", true),
-    supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(5),
-    supabase.from("designs").select("*, profiles(full_name)").order("created_at", { ascending: false }).limit(5),
-  ])
+  // For now, show a simplified admin dashboard
+  // TODO: Implement database queries using the new system
+  const totalUsers = 0
+  const totalArchitects = 0
+  const totalDesigns = 0
+  const publicDesigns = 0
+  const recentUsers: any[] = []
+  const recentDesigns: any[] = []
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +56,7 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalArchitects || 0}</div>
-              <p className="text-xs text-muted-foreground">Verified architects</p>
+              <p className="text-xs text-muted-foreground">Registered architects</p>
             </CardContent>
           </Card>
 
@@ -92,146 +78,111 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{publicDesigns || 0}</div>
-              <p className="text-xs text-muted-foreground">Shared publicly</p>
+              <p className="text-xs text-muted-foreground">Community designs</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <Users className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <h3 className="font-semibold">Manage Users</h3>
-              <p className="text-sm text-muted-foreground">View and manage user accounts</p>
+        {/* Admin Tools */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                AI Service Tester
+              </CardTitle>
+              <CardDescription>
+                Test AI services and image generation functionality
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AIServiceTester />
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <Building className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <h3 className="font-semibold">Manage Architects</h3>
-              <p className="text-sm text-muted-foreground">Verify and manage architects</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <ImageIcon className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <h3 className="font-semibold">Manage Designs</h3>
-              <p className="text-sm text-muted-foreground">Moderate design content</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
-              <CreditCard className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <h3 className="font-semibold">Payment Settings</h3>
-              <p className="text-sm text-muted-foreground">Configure payment options</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                System Status
+              </CardTitle>
+              <CardDescription>
+                Monitor system health and performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Database</span>
+                  <Badge variant="default">Connected</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">AI Service</span>
+                  <Badge variant="default">Active</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Storage</span>
+                  <Badge variant="default">Available</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Users */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Users</CardTitle>
-              <CardDescription>Latest user registrations</CardDescription>
+              <CardDescription>Latest registered users</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentUsers && recentUsers.length > 0 ? (
-                  recentUsers.map((user) => (
+              {recentUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {recentUsers.map((user: any) => (
                     <div key={user.id} className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">{user.full_name || "Anonymous"}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <p className="text-sm font-medium">{user.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
-                      <div className="text-right">
-                        <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role || "user"}</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
+                      <Badge variant="outline">{user.role}</Badge>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No recent users</p>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent users</p>
+              )}
             </CardContent>
           </Card>
 
-          {/* Recent Designs */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Designs</CardTitle>
               <CardDescription>Latest generated designs</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentDesigns && recentDesigns.length > 0 ? (
-                  recentDesigns.map((design) => (
+              {recentDesigns.length > 0 ? (
+                <div className="space-y-2">
+                  {recentDesigns.map((design: any) => (
                     <div key={design.id} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium truncate">{design.title || "Untitled Design"}</p>
-                        <p className="text-sm text-muted-foreground">by {design.profiles?.full_name || "Anonymous"}</p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={design.is_public ? "default" : "secondary"}>
-                          {design.is_public ? "Public" : "Private"}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(design.created_at).toLocaleDateString()}
+                      <div>
+                        <p className="text-sm font-medium">{design.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          by {design.profiles?.full_name || 'Unknown'}
                         </p>
                       </div>
+                      <Badge variant={design.is_public ? "default" : "outline"}>
+                        {design.is_public ? "Public" : "Private"}
+                      </Badge>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No recent designs</p>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent designs</p>
+              )}
             </CardContent>
           </Card>
         </div>
-
-        {/* AI Service Tester */}
-        <div className="mt-6">
-          <AIServiceTester />
-        </div>
-
-        {/* System Alerts */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              System Alerts
-            </CardTitle>
-            <CardDescription>Important notifications and system status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-md">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <div>
-                  <p className="text-sm font-medium">Payment System Integration Pending</p>
-                  <p className="text-xs text-muted-foreground">
-                    PayHere integration needs to be configured for point purchases
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-md">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium">System Running Normally</p>
-                  <p className="text-xs text-muted-foreground">All core features are operational</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

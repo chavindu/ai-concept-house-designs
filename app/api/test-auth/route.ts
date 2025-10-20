@@ -1,37 +1,28 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { verifyAuthFromCookies } from "@/lib/auth/session"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: "No authorization header" }, { status: 401 })
+    // Check authentication using cookies
+    const authResult = await verifyAuthFromCookies(request)
+    if (!authResult) {
+      return NextResponse.json({ error: "No valid authentication found" }, { status: 401 })
     }
 
-    // Check authentication using the token from the header
-    const token = authHeader.replace('Bearer ', '')
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
+    const { user } = authResult
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized", details: authError }, { status: 401 })
+    // Get user profile using API call
+    const profileResponse = await fetch(`${request.nextUrl.origin}/api/user/profile`, {
+      headers: {
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    })
+
+    if (!profileResponse.ok) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("points, daily_points_claimed")
-      .eq("id", user.id)
-      .single()
-
-    if (profileError) {
-      return NextResponse.json({ error: "Profile not found", details: profileError }, { status: 404 })
-    }
+    const profile = await profileResponse.json()
 
     return NextResponse.json({
       success: true,

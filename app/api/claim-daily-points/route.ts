@@ -1,29 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { claimDailyPoints } from "@/lib/points"
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: "No authorization header" }, { status: 401 })
-    }
-
-    // Check authentication using the token from the header
-    const token = authHeader.replace('Bearer ', '')
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Get user ID from headers (set by middleware)
+    const userId = request.headers.get('x-user-id')
+    
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
     // Claim daily points
-    const result = await claimDailyPoints(user.id)
+    const result = await claimDailyPoints(userId)
 
     return NextResponse.json({
       success: true,

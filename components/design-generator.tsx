@@ -7,11 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sparkles, Wand2, Plus, Minus, Loader2, CheckCircle2, ShieldAlert, RotateCcw } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useDesign } from "@/lib/design-context"
 import { AuthModal } from "@/components/auth-modal"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { useAuth } from "@/lib/auth/auth-context"
 
 const architecturalStyles = [
   {
@@ -109,8 +108,7 @@ export function DesignGenerator() {
   const [perspective, setPerspective] = useState("front")
 
   // App state
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
@@ -149,7 +147,6 @@ export function DesignGenerator() {
   ]
 
   const router = useRouter()
-  const supabase = createClient()
 
   // Save form state to localStorage whenever it changes
   const saveFormState = () => {
@@ -198,47 +195,31 @@ export function DesignGenerator() {
   }
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
-      setLoading(false)
-      try {
-        if (user?.id) {
-          const { data } = await supabase.from("profiles").select("points").eq("id", user.id).single()
-          if (data?.points !== undefined) setProfilePoints(data.points)
-        } else {
-          setProfilePoints(null)
-        }
-      } catch {}
-    }
-
-    getUser()
     loadFormState()
+  }, [])
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-      if (session?.user?.id) {
-        supabase
-          .from("profiles")
-          .select("points")
-          .eq("id", session.user.id)
-          .single()
-          .then((res: { data: { points?: number } | null } | null | undefined) => {
-            const data = res?.data as { points?: number } | null
-            if (data?.points !== undefined) setProfilePoints(data.points)
+  // Fetch user points when user changes
+  useEffect(() => {
+    const fetchUserPoints = async () => {
+      if (user?.id) {
+        try {
+          const response = await fetch('/api/user/profile', {
+            credentials: 'include'
           })
+          if (response.ok) {
+            const data = await response.json()
+            setProfilePoints(data.points || 0)
+          }
+        } catch (error) {
+          console.error('Error fetching user points:', error)
+        }
       } else {
         setProfilePoints(null)
       }
-    })
+    }
 
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
+    fetchUserPoints()
+  }, [user])
 
   // Save form state whenever any form field changes
   useEffect(() => {
@@ -307,10 +288,8 @@ export function DesignGenerator() {
     try {
       setError(null) // Clear any previous errors
 
-      // Get the session token
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
+      // Check if user is authenticated
+      if (!user) {
         setShowAuthModal(true)
         return
       }
@@ -327,10 +306,10 @@ export function DesignGenerator() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(formData),
         signal: controller.signal,
+        credentials: 'include'
       })
       
       // Clear the timeout if request completes
@@ -557,8 +536,8 @@ export function DesignGenerator() {
     try {
       setError(null)
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
+      // Check if user is authenticated
+      if (!user) {
         setShowAuthModal(true)
         return
       }
@@ -574,10 +553,10 @@ export function DesignGenerator() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(formData),
         signal: controller.signal,
+        credentials: 'include'
       })
       
       clearTimeout(timeoutId)

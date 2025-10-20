@@ -8,71 +8,43 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Home, LogIn, User, CreditCard, History, Settings, Calendar, ImageIcon, ChevronDown, Globe, Coins } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth/auth-context"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
 import Link from "next/link"
+import { AuthModal } from "@/components/auth-modal"
 
 export function Header() {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, logout } = useAuth()
   const [language, setLanguage] = useState<"EN" | "SI">("EN")
   const [userPoints, setUserPoints] = useState<number>(0)
   const [canClaimDaily, setCanClaimDaily] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
   const { toast } = useToast()
 
   useEffect(() => {
-    // Get initial user and points
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
-      
-      if (user) {
-        await fetchUserPoints(user.id)
-      }
-      
-      setLoading(false)
+    if (user) {
+      fetchUserPoints()
     }
+  }, [user])
 
-    getUser()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        await fetchUserPoints(session.user.id)
-      }
-      
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
-
-  const fetchUserPoints = async (userId: string) => {
+  const fetchUserPoints = async () => {
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("points, daily_points_claimed")
-        .eq("id", userId)
-        .single()
+      const response = await fetch('/api/user/profile', {
+        credentials: 'include',
+      })
 
-      if (profile) {
-        setUserPoints(profile.points)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPoints(data.points)
         
         // Check if user can claim daily points
         const today = new Date().toISOString().split('T')[0]
-        setCanClaimDaily(profile.daily_points_claimed !== today)
+        setCanClaimDaily(data.daily_points_claimed !== today)
       }
     } catch (error) {
       console.error("Error fetching user points:", error)
@@ -81,34 +53,18 @@ export function Header() {
 
   const handleClaimDailyPoints = async () => {
     try {
-      // Get the session token
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to claim daily points",
-          variant: "destructive",
-        })
-        return
-      }
-
       const response = await fetch("/api/claim-daily-points", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-        },
+        credentials: 'include',
       })
 
       if (response.ok) {
         const result = await response.json()
         setUserPoints(result.newBalance)
         setCanClaimDaily(false)
-        // Show success message
         toast({
           title: "Daily Points Claimed!",
           description: "You received 2 points. New balance: " + result.newBalance,
-          variant: "success",
         })
       } else {
         const error = await response.json()
@@ -129,12 +85,11 @@ export function Header() {
   }
 
   const handleLogin = () => {
-    router.push("/auth/login")
+    setIsAuthModalOpen(true)
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push("/")
+    await logout()
   }
 
   return (
@@ -179,8 +134,13 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span className="hidden sm:inline">Profile</span>
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.avatar_url} alt={user.full_name || 'Profile'} />
+                      <AvatarFallback>
+                        {user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline">{user.full_name || 'Profile'}</span>
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -229,6 +189,19 @@ export function Header() {
           )}
         </div>
       </div>
+      
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          setIsAuthModalOpen(false)
+          // Refresh user points after successful login/register
+          if (user) {
+            fetchUserPoints()
+          }
+        }}
+      />
     </header>
   )
 }

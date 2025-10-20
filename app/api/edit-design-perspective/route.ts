@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { editArchitecturalDesignPerspective } from "@/lib/ai-service"
 import { generatePrompt } from "@/lib/prompt-generator"
+import { query } from "@/lib/database/client"
+import { deductPoints } from "@/lib/points"
 
 export async function POST(request: NextRequest) {
   console.log("=".repeat(80))
@@ -37,35 +38,34 @@ export async function POST(request: NextRequest) {
 
     // Verify authentication
     console.log("\n🔐 Verifying authentication...")
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.log("❌ Authentication failed:", authError?.message)
+    const userId = request.headers.get('x-user-id')
+    
+    if (!userId) {
+      console.log("❌ No user ID in headers")
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       )
     }
 
-    console.log("✅ User authenticated:", user.id)
+    console.log("✅ User authenticated:", userId)
 
     // Check user points
     console.log("\n💰 Checking user points...")
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("points")
-      .eq("id", user.id)
-      .single()
+    const profileResult = await query(
+      'SELECT points FROM profiles WHERE id = $1',
+      [userId]
+    )
 
-    if (profileError || !profile) {
-      console.log("❌ Failed to fetch user profile:", profileError?.message)
+    if (profileResult.rows.length === 0) {
+      console.log("❌ Failed to fetch user profile")
       return NextResponse.json(
         { error: "Failed to fetch user profile" },
         { status: 500 }
       )
     }
 
+    const profile = profileResult.rows[0]
     const currentPoints = profile.points || 0
     console.log("📊 Current points:", currentPoints)
 
@@ -78,24 +78,6 @@ export async function POST(request: NextRequest) {
 
     // Determine if user is free (for watermarking)
     const isFreeUser = currentPoints <= 10
-
-    // Deduct 1 point
-    console.log("\n💸 Deducting 1 point...")
-    const newPoints = currentPoints - 1
-    const { error: pointsError } = await supabase
-      .from("profiles")
-      .update({ points: newPoints })
-      .eq("id", user.id)
-
-    if (pointsError) {
-      console.log("❌ Failed to deduct points:", pointsError.message)
-      return NextResponse.json(
-        { error: "Failed to deduct points" },
-        { status: 500 }
-      )
-    }
-
-    console.log("✅ Points deducted. New balance:", newPoints)
 
     // Generate original prompt for context
     console.log("\n📝 Generating original prompt for context...")
@@ -117,53 +99,41 @@ export async function POST(request: NextRequest) {
 
     // Save the edited design to database
     console.log("\n💾 Saving edited design to database...")
-    const { data: designRecord, error: saveError } = await supabase
-      .from("designs")
-      .insert({
-        user_id: user.id,
-        image_url: editResult.imageUrl,
-        thumbnail_url: editResult.thumbnailUrl,
-        prompt: originalPrompt,
-        perspective: newPerspective,
-        style: originalFormData.style,
-        is_watermarked: editResult.isWatermarked,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single()
+    const designResult = await query(
+      `INSERT INTO designs (user_id, image_url, thumbnail_url, prompt, perspective, style, is_watermarked, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        userId,
+        editResult.imageUrl,
+        editResult.thumbnailUrl,
+        originalPrompt,
+        newPerspective,
+        originalFormData.style,
+        editResult.isWatermarked,
+        "completed"
+      ]
+    )
 
-    if (saveError) {
-      console.log("❌ Failed to save design:", saveError.message)
-      
-      // Refund the point since save failed
-      console.log("🔄 Refunding point due to save failure...")
-      await supabase
-        .from("profiles")
-        .update({ points: currentPoints })
-        .eq("id", user.id)
-      
+    if (designResult.rows.length === 0) {
+      console.log("❌ Failed to save design")
       return NextResponse.json(
-        { error: "Failed to save design", pointRefunded: true },
+        { error: "Failed to save design" },
         { status: 500 }
       )
     }
 
+    const designRecord = designResult.rows[0]
     console.log("✅ Design saved successfully. Design ID:", designRecord.id)
 
-    // Log point transaction
-    console.log("\n📊 Logging point transaction...")
-    await supabase
-      .from("points_transactions")
-      .insert({
-        user_id: user.id,
-        type: "perspective_edit",
-        amount: -1,
-        description: `Perspective edit to ${newPerspective}`,
-        design_id: designRecord.id,
-        created_at: new Date().toISOString()
-      })
-
-    console.log("✅ Point transaction logged")
+    // Deduct points after successful generation
+    try {
+      await deductPoints(userId, 1, `Perspective edit to ${newPerspective}`, designRecord.id)
+      console.log("✅ Points deducted successfully")
+    } catch (pointsError) {
+      console.error("❌ Failed to deduct points:", pointsError)
+      // Don't fail the request if points deduction fails
+    }
 
     // Return success response
     const response = {
@@ -172,7 +142,7 @@ export async function POST(request: NextRequest) {
       isWatermarked: editResult.isWatermarked,
       perspective: newPerspective,
       designId: designRecord.id,
-      remainingPoints: newPoints,
+      remainingPoints: currentPoints - 1,
       originalFormData: originalFormData
     }
 
@@ -189,36 +159,9 @@ export async function POST(request: NextRequest) {
     console.error("Error details:", error)
     console.error("Error message:", error instanceof Error ? error.message : String(error))
 
-    // Try to refund point if we deducted one
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        console.log("🔄 Attempting to refund point due to error...")
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("points")
-          .eq("id", user.id)
-          .single()
-        
-        if (profile) {
-          await supabase
-            .from("profiles")
-            .update({ points: (profile.points || 0) + 1 })
-            .eq("id", user.id)
-          
-          console.log("✅ Point refunded")
-        }
-      }
-    } catch (refundError) {
-      console.error("❌ Failed to refund point:", refundError)
-    }
-
     return NextResponse.json(
       { 
-        error: `Perspective editing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        pointRefunded: true 
+        error: `Perspective editing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       },
       { status: 500 }
     )

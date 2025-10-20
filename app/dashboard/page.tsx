@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useAuth } from "@/lib/auth/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -7,40 +9,106 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Coins, Calendar, CreditCard, Sparkles, Eye } from "lucide-react"
 import { DashboardInteractive } from "@/components/dashboard-interactive"
+import { useRouter } from "next/navigation"
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
+interface Design {
+  id: string
+  title: string
+  image_url: string
+  thumbnail_url: string
+  status: string
+  created_at: string
+  is_watermarked: boolean
+}
 
-  // Get authenticated user
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+interface Transaction {
+  id: string
+  amount: number
+  type: string
+  description: string
+  created_at: string
+}
 
-  if (error || !user) {
-    redirect("/auth/login")
+export default function DashboardPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [designs, setDesigns] = useState<Design[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [profile, setProfile] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth/login")
+      return
+    }
+
+    if (user) {
+      fetchDashboardData()
+    }
+  }, [user, loading, router])
+
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch user profile and designs
+      const response = await fetch('/api/user/profile', {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setProfile(data)
+        
+        // Fetch user designs
+        const designsResponse = await fetch('/api/user/designs', {
+          credentials: 'include'
+        })
+        
+        if (designsResponse.ok) {
+          const designsData = await designsResponse.json()
+          setDesigns(designsData.designs || [])
+        }
+        
+        // Fetch transactions
+        const transactionsResponse = await fetch('/api/user/transactions', {
+          credentials: 'include'
+        })
+        
+        if (transactionsResponse.ok) {
+          const transactionsData = await transactionsResponse.json()
+          setTransactions(transactionsData.transactions || [])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Get user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+  if (loading || isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  // Get user designs
-  const { data: designs = [] } = await supabase
-    .from("designs")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-
-  // Get recent points transactions
-  const { data: transactions = [] } = await supabase
-    .from("points_transactions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(10)
+  if (!user) {
+    return null // Will redirect to login
+  }
 
   const userInitials =
-    profile?.full_name
+    user.full_name
       ?.split(" ")
       .map((n: string) => n[0])
       .join("")

@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,33 +11,87 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Filter, MoreHorizontal, Mail, Calendar, Coins } from "lucide-react"
 
-export default async function AdminUsersPage() {
-  const supabase = await createClient()
+interface User {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  points: number
+  created_at: string
+  email_verified: boolean
+  design_count: number
+}
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+export default function AdminUsersPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [roleFilter, setRoleFilter] = useState("all")
 
-  if (error || !user) {
-    redirect("/auth/login")
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
+
+      if (user.role !== "admin") {
+        router.push("/dashboard")
+        return
+      }
+
+      fetchUsers()
+    }
+  }, [user, loading, router])
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/admin/users', {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Check if user is admin
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-  if (!profile || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    redirect("/dashboard")
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // Get all users with their design counts
-  const { data: users } = await supabase
-    .from("profiles")
-    .select(`
-      *,
-      designs:designs(count)
-    `)
-    .order("created_at", { ascending: false })
+  if (!user || user.role !== "admin") {
+    return null // Will redirect
+  }
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesRole = roleFilter === "all" || user.role === roleFilter
+    return matchesSearch && matchesRole
+  })
 
   return (
     <div className="min-h-screen bg-background">

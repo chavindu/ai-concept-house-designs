@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -81,7 +80,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
+  // const supabase = createClient()
 
   useEffect(() => {
     getCurrentUser()

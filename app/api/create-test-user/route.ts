@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createUser } from "@/lib/database/server"
+import { hashPassword } from "@/lib/auth/password"
 
-// This route creates test users using Supabase Admin API
+// This route creates test users using the new authentication system
 // Only use this for development/testing
 export async function POST(request: NextRequest) {
   try {
@@ -10,62 +11,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not allowed in production" }, { status: 403 })
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
     const { email, password, fullName } = await request.json()
 
     if (!email || !password || !fullName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create user in auth.users
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Hash the password
+    const passwordHash = await hashPassword(password)
+
+    // Create user in the new system
+    const user = await createUser({
       email,
-      password,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        full_name: fullName
-      }
+      password_hash: passwordHash,
+      full_name: fullName,
+      email_verified: true, // Auto-confirm email for test users
+      role: 'user',
+      avatar_url: null,
     })
-
-    if (authError) {
-      console.error("Error creating auth user:", authError)
-      return NextResponse.json({ error: authError.message }, { status: 400 })
-    }
-
-    // The trigger should automatically create the profile
-    // But let's also create it manually to be sure
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .upsert({
-        id: authUser.user.id,
-        full_name: fullName,
-        email: email,
-        points: 10,
-        role: "user",
-        language_preference: "en"
-      })
-
-    if (profileError) {
-      console.error("Error creating profile:", profileError)
-      // Don't fail the request, the user was created successfully
-    }
 
     return NextResponse.json({
       success: true,
       user: {
-        id: authUser.user.id,
-        email: authUser.user.email,
-        full_name: fullName
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name
       }
     })
 

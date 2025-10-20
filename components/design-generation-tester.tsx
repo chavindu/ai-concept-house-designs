@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+// Removed Supabase import - using API routes instead
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useDesign } from "@/lib/design-context"
@@ -9,7 +9,6 @@ import { useDesign } from "@/lib/design-context"
 export function DesignGenerationTester() {
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
   const { setIsGenerating, setGeneratedDesign } = useDesign()
 
   const testGeneration = async () => {
@@ -20,14 +19,8 @@ export function DesignGenerationTester() {
     try {
       console.log("🧪 Starting design generation test...")
       
-      // Get the session token
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log("Session exists:", !!session)
-      console.log("Access token exists:", !!session?.access_token)
-      
-      if (!session?.access_token) {
-        throw new Error("No session found - please log in")
-      }
+      // Authentication will be handled by the API route
+      console.log("🧪 Testing design generation...")
 
       const formData = {
         buildingType: "residential",
@@ -57,9 +50,9 @@ export function DesignGenerationTester() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(formData),
+        credentials: 'include'
       })
 
       console.log("📥 Response received:", response.status, response.statusText)

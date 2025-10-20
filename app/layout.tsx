@@ -5,10 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
-import { DesignProvider } from "@/lib/design-context"
-import { Toaster } from "@/components/ui/toaster"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
+import { ClientLayout } from "@/components/client-layout"
 
 export const metadata: Metadata = {
   title: "Architecture.lk - AI-Powered House Design Platform",
@@ -28,17 +25,9 @@ export default function RootLayout({
         className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
         suppressHydrationWarning={true}
       >
-        <DesignProvider>
-          <div className="min-h-screen bg-background flex flex-col">
-            <Header />
-            <main className="flex-1">
-              <Suspense fallback={null}>{children}</Suspense>
-            </main>
-            <Footer />
-          </div>
-        </DesignProvider>
-        <Toaster />
-        <Analytics />
+        <ClientLayout>
+          <Suspense fallback={null}>{children}</Suspense>
+        </ClientLayout>
       </body>
     </html>
   )

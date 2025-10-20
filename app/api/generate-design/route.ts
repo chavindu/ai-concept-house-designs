@@ -1,40 +1,41 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { generatePrompt } from "@/lib/prompt-generator"
 import { generateArchitecturalDesign, checkGenerationLimit } from "@/lib/ai-service"
+import { deductPoints } from "@/lib/points"
+import { query } from "@/lib/database/client"
+import { verifyAuthFromCookies } from "@/lib/auth/session"
 
 export async function POST(request: NextRequest) {
   try {
     console.log("🚀 MAIN DESIGN GENERATION API CALLED")
     console.log("=====================================")
     
-    const supabase = await createClient()
-
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      console.log("No authorization header")
-      return NextResponse.json({ error: "No authorization header" }, { status: 401 })
+    // Get user ID from cookies or headers
+    const auth = await verifyAuthFromCookies(request)
+    let userId = request.headers.get('x-user-id') || auth?.user?.id || null
+    
+    if (!userId) {
+      console.log("No user ID (cookies/headers)")
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    // Check authentication using the token from the header
-    const token = authHeader.replace('Bearer ', '')
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
+    console.log("User authenticated:", userId)
 
-    if (authError || !user) {
-      console.log("Authentication failed:", authError)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Check user points
+    const profileResult = await query(
+      'SELECT points FROM profiles WHERE id = $1',
+      [userId]
+    )
+
+    if (profileResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 404 }
+      )
     }
 
-    console.log("User authenticated:", user.id)
-
-    // Check user points and generation limits
-    const { data: profile } = await supabase.from("profiles").select("points").eq("id", user.id).single()
-
-    if (!profile || profile.points < 1) {
+    const profile = profileResult.rows[0]
+    if (profile.points < 1) {
       return NextResponse.json(
         {
           error: "Insufficient points. You need at least 1 point to generate a design.",
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check generation rate limit (20 per hour as per spec)
-    if (!checkGenerationLimit(user.id)) {
+    if (!checkGenerationLimit(userId)) {
       return NextResponse.json(
         {
           error: "Generation limit exceeded. You can generate up to 20 designs per hour.",
@@ -61,45 +62,28 @@ export async function POST(request: NextRequest) {
     const prompt = generatePrompt(formData)
     console.log("✅ Prompt generated successfully")
 
-    // Deduct points (1 point per generation as per spec)
-    const { error: pointsError } = await supabase
-      .from("profiles")
-      .update({ points: profile.points - 1 })
-      .eq("id", user.id)
+    // Save the design request first
+    const designResult = await query(
+      `INSERT INTO designs (user_id, title, prompt, style, building_type, specifications, perspective, points_cost, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        userId,
+        `${formData.style} ${formData.buildingType}`,
+        prompt,
+        formData.style,
+        formData.buildingType,
+        JSON.stringify(formData),
+        formData.perspective,
+        1,
+        "generating"
+      ]
+    )
 
-    if (pointsError) {
-      console.error("Error deducting points:", pointsError)
-    }
-
-    // Log the transaction
-    await supabase.from("points_transactions").insert({
-      user_id: user.id,
-      amount: -1,
-      type: "deduction",
-      description: "AI Design Generation",
-      reference_id: `design_${Date.now()}`,
-    })
-
-    // Save the design request
-    const { data: design, error: designError } = await supabase
-      .from("designs")
-      .insert({
-        user_id: user.id,
-        title: `${formData.style} ${formData.buildingType}`,
-        prompt: prompt,
-        style: formData.style,
-        building_type: formData.buildingType,
-        specifications: formData,
-        perspective: formData.perspective,
-        points_cost: 1,
-        status: "generating",
-      })
-      .select()
-      .single()
-
-    if (designError) {
-      console.error("Error saving design:", designError)
-      // Continue with generation even if saving fails
+    const design = designResult.rows[0]
+    if (!design) {
+      console.error("Error saving design")
+      return NextResponse.json({ error: "Failed to save design" }, { status: 500 })
     }
 
     // Generate AI design
@@ -122,16 +106,20 @@ export async function POST(request: NextRequest) {
       console.log("✅ AI generation completed:", aiResult)
 
       // Update design with generated image
-      if (design) {
-        await supabase
-          .from("designs")
-          .update({
-            image_url: aiResult.imageUrl,
-            thumbnail_url: aiResult.thumbnailUrl,
-            is_watermarked: aiResult.isWatermarked,
-            status: "completed",
-          })
-          .eq("id", design.id)
+      await query(
+        `UPDATE designs 
+         SET image_url = $1, thumbnail_url = $2, is_watermarked = $3, status = $4, updated_at = NOW()
+         WHERE id = $5`,
+        [aiResult.imageUrl, aiResult.thumbnailUrl, aiResult.isWatermarked, "completed", design.id]
+      )
+
+      // Deduct points after successful generation
+      try {
+        await deductPoints(userId, 1, "AI Design Generation", design.id)
+        console.log("✅ Points deducted successfully")
+      } catch (pointsError) {
+        console.error("Error deducting points:", pointsError)
+        // Don't fail the request if points deduction fails
       }
 
       return NextResponse.json({
@@ -140,7 +128,7 @@ export async function POST(request: NextRequest) {
         thumbnailUrl: aiResult.thumbnailUrl,
         isWatermarked: aiResult.isWatermarked,
         prompt: prompt,
-        designId: design?.id,
+        designId: design.id,
         remainingPoints: profile.points - 1,
         originalFormData: formData, // Include form data for regeneration
       })
@@ -148,20 +136,10 @@ export async function POST(request: NextRequest) {
       console.error("AI generation failed:", aiError)
       
       // Update design status to failed
-      if (design) {
-        await supabase
-          .from("designs")
-          .update({
-            status: "failed",
-          })
-          .eq("id", design.id)
-      }
-
-      // Refund the point
-      await supabase
-        .from("profiles")
-        .update({ points: profile.points })
-        .eq("id", user.id)
+      await query(
+        'UPDATE designs SET status = $1, updated_at = NOW() WHERE id = $2',
+        ["failed", design.id]
+      )
 
       return NextResponse.json(
         { error: "AI generation failed. Please try again later." },

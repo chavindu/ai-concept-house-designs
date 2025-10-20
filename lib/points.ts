@@ -1,47 +1,46 @@
-import { createClient } from "@/lib/supabase/server"
+import { query, withTransaction } from '@/lib/database/client'
 
 export async function deductPoints(userId: string, amount: number, description: string, designId?: string) {
-  const supabase = await createClient()
+  try {
+    // Start a transaction
+    return await withTransaction(async (client) => {
+      // Get current points
+      const profileResult = await client.query(
+        'SELECT points FROM profiles WHERE id = $1',
+        [userId]
+      )
 
-  // Start a transaction
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("points")
-    .eq("id", userId)
-    .single()
+      if (profileResult.rows.length === 0) {
+        throw new Error('User profile not found')
+      }
 
-  if (profileError || !profile) {
-    throw new Error("Failed to get user profile")
+      const currentPoints = profileResult.rows[0].points
+
+      if (currentPoints < amount) {
+        throw new Error('Insufficient points')
+      }
+
+      const newPoints = currentPoints - amount
+
+      // Update points in profile
+      await client.query(
+        'UPDATE profiles SET points = $1, updated_at = NOW() WHERE id = $2',
+        [newPoints, userId]
+      )
+
+      // Record transaction
+      await client.query(
+        `INSERT INTO points_transactions (user_id, amount, type, description, reference_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [userId, -amount, 'deduction', description, designId]
+      )
+
+      return { success: true, remainingPoints: newPoints }
+    })
+  } catch (error) {
+    console.error('Error deducting points:', error)
+    throw error
   }
-
-  if (profile.points < amount) {
-    throw new Error("Insufficient points")
-  }
-
-  // Deduct points from profile
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ points: profile.points - amount })
-    .eq("id", userId)
-
-  if (updateError) {
-    throw new Error("Failed to update points")
-  }
-
-  // Record transaction
-  const { error: transactionError } = await supabase.from("points_transactions").insert({
-    user_id: userId,
-    amount: -amount,
-    type: "deduction",
-    description,
-    reference_id: designId,
-  })
-
-  if (transactionError) {
-    throw new Error("Failed to record transaction")
-  }
-
-  return { success: true, remainingPoints: profile.points - amount }
 }
 
 export async function addPoints(
@@ -50,89 +49,86 @@ export async function addPoints(
   description: string,
   type: "earned" | "purchased" = "earned",
 ) {
-  const supabase = await createClient()
+  try {
+    // Start a transaction
+    return await withTransaction(async (client) => {
+      // Get current points
+      const profileResult = await client.query(
+        'SELECT points FROM profiles WHERE id = $1',
+        [userId]
+      )
 
-  // Get current points
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("points")
-    .eq("id", userId)
-    .single()
+      if (profileResult.rows.length === 0) {
+        throw new Error('User profile not found')
+      }
 
-  if (profileError || !profile) {
-    throw new Error("Failed to get user profile")
+      const currentPoints = profileResult.rows[0].points
+      const newPoints = currentPoints + amount
+
+      // Update points in profile
+      await client.query(
+        'UPDATE profiles SET points = $1, updated_at = NOW() WHERE id = $2',
+        [newPoints, userId]
+      )
+
+      // Record transaction
+      await client.query(
+        `INSERT INTO points_transactions (user_id, amount, type, description)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, amount, type, description]
+      )
+
+      return { success: true, newBalance: newPoints }
+    })
+  } catch (error) {
+    console.error('Error adding points:', error)
+    throw error
   }
-
-  // Add points to profile
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ points: profile.points + amount })
-    .eq("id", userId)
-
-  if (updateError) {
-    throw new Error("Failed to update points")
-  }
-
-  // Record transaction
-  const { error: transactionError } = await supabase.from("points_transactions").insert({
-    user_id: userId,
-    amount,
-    type,
-    description,
-  })
-
-  if (transactionError) {
-    throw new Error("Failed to record transaction")
-  }
-
-  return { success: true, newBalance: profile.points + amount }
 }
 
 // Daily points refresh function for free users
 export async function claimDailyPoints(userId: string) {
-  const supabase = await createClient()
-  
-  // Check if user already claimed today
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("points, daily_points_claimed")
-    .eq("id", userId)
-    .single()
+  try {
+    // Start a transaction
+    return await withTransaction(async (client) => {
+      // Check if user already claimed today
+      const profileResult = await client.query(
+        'SELECT points, daily_points_claimed FROM profiles WHERE id = $1',
+        [userId]
+      )
 
-  if (profileError || !profile) {
-    throw new Error("Failed to get user profile")
-  }
+      if (profileResult.rows.length === 0) {
+        throw new Error('User profile not found')
+      }
 
-  const today = new Date().toISOString().split('T')[0]
-  
-  if (profile.daily_points_claimed === today) {
-    throw new Error("Daily points already claimed today")
-  }
+      const profile = profileResult.rows[0]
+      const today = new Date().toISOString().split('T')[0]
+      
+      if (profile.daily_points_claimed === today) {
+        throw new Error('Daily points already claimed today')
+      }
 
-  // Add 2 daily points
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ 
-      points: profile.points + 2,
-      daily_points_claimed: today
+      const newPoints = profile.points + 2
+
+      // Update points and daily claim date
+      await client.query(
+        `UPDATE profiles 
+         SET points = $1, daily_points_claimed = $2, updated_at = NOW() 
+         WHERE id = $3`,
+        [newPoints, today, userId]
+      )
+
+      // Record transaction
+      await client.query(
+        `INSERT INTO points_transactions (user_id, amount, type, description)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, 2, 'earned', 'Daily points refresh']
+      )
+
+      return { success: true, newBalance: newPoints }
     })
-    .eq("id", userId)
-
-  if (updateError) {
-    throw new Error("Failed to update points")
+  } catch (error) {
+    console.error('Error claiming daily points:', error)
+    throw error
   }
-
-  // Record transaction
-  const { error: transactionError } = await supabase.from("points_transactions").insert({
-    user_id: userId,
-    amount: 2,
-    type: "earned",
-    description: "Daily points refresh",
-  })
-
-  if (transactionError) {
-    throw new Error("Failed to record transaction")
-  }
-
-  return { success: true, newBalance: profile.points + 2 }
 }

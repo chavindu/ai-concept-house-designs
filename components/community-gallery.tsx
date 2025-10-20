@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Heart, Share2, Eye } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+// Removed Supabase import - using API routes instead
 
 interface GalleryItem {
   id: string
@@ -24,7 +24,6 @@ export function CommunityGallery() {
   const router = useRouter()
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     fetchGalleryItems()
@@ -34,30 +33,19 @@ export function CommunityGallery() {
     try {
       console.log("🔄 Fetching gallery items...")
       
-      const { data: designs, error } = await supabase
-        .from("designs")
-        .select(`
-          id,
-          image_url,
-        thumbnail_url,
-        title,
-        style,
-        is_watermarked,
-        created_at
-        `)
-        .eq("is_public", true)
-        .eq("status", "completed")
-        .order("created_at", { ascending: false })
-        .limit(8)
+      const response = await fetch('/api/gallery/public', {
+        credentials: 'include'
+      })
 
-      console.log("Gallery query result:", { designs, error })
-
-      if (error) {
-        console.error("❌ Error fetching gallery:", error)
+      if (!response.ok) {
+        console.error("❌ Error fetching gallery:", response.statusText)
         console.log("Using sample data instead")
         setGalleryItems(getSampleData())
         return
       }
+
+      const designs = await response.json()
+      console.log("Gallery API result:", designs)
 
       if (!designs || designs.length === 0) {
         console.log("No designs found, using sample data")
@@ -189,9 +177,10 @@ export function CommunityGallery() {
           <Card key={item.id} className="group overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
             <div className="aspect-square relative overflow-hidden">
               <img
-                src={item.image_url || "/placeholder.svg"}
+                src={item.thumbnail_url || item.image_url || "/placeholder.svg"}
                 alt={item.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
 

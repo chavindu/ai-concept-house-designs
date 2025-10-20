@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+// import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -254,11 +254,12 @@ export default function GalleryPage() {
                 className={`overflow-hidden hover:shadow-lg transition-shadow ${viewMode === "list" ? "flex" : ""}`}
               >
                 <div className={`${viewMode === "list" ? "w-64 flex-shrink-0" : "aspect-video"} bg-muted`}>
-                  {design.image_url ? (
+                  {design.thumbnail_url || design.image_url ? (
                     <img
-                      src={design.image_url || "/placeholder.svg"}
+                      src={design.thumbnail_url || design.image_url || "/placeholder.svg"}
                       alt={design.title || "Generated design"}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">

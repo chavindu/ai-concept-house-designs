@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { addPoints } from "@/lib/points"
+import { query } from "@/lib/database/client"
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,33 +20,30 @@ export async function POST(request: NextRequest) {
     // const merchant_secret = process.env.PAYHERE_MERCHANT_SECRET
     // const local_md5sig = md5(merchant_id + order_id + payhere_amount + payhere_currency + status_code + merchant_secret)
 
-    const supabase = await createClient()
-
     // Get payment record
-    const { data: payment, error: paymentError } = await supabase
-      .from("payments")
-      .select("*")
-      .eq("id", order_id)
-      .single()
+    const paymentResult = await query(
+      'SELECT * FROM payments WHERE id = $1',
+      [order_id]
+    )
 
-    if (paymentError || !payment) {
+    if (paymentResult.rows.length === 0) {
       console.error("Payment not found:", order_id)
       return NextResponse.json({ error: "Payment not found" }, { status: 404 })
     }
+
+    const payment = paymentResult.rows[0]
 
     // Check if payment is successful
     if (status_code === "2") {
       // Payment successful
       try {
         // Update payment status
-        await supabase
-          .from("payments")
-          .update({
-            status: "completed",
-            payhere_payment_id: formData.get("payment_id") as string,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order_id)
+        await query(
+          `UPDATE payments 
+           SET status = $1, payhere_payment_id = $2, updated_at = NOW()
+           WHERE id = $3`,
+          ["completed", formData.get("payment_id") as string, order_id]
+        )
 
         // Add points to user account
         await addPoints(
@@ -63,27 +60,23 @@ export async function POST(request: NextRequest) {
         console.error("Error processing successful payment:", error)
 
         // Update payment status to failed
-        await supabase
-          .from("payments")
-          .update({
-            status: "failed",
-            error_message: "Failed to add points",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order_id)
+        await query(
+          `UPDATE payments 
+           SET status = $1, error_message = $2, updated_at = NOW()
+           WHERE id = $3`,
+          ["failed", "Failed to add points", order_id]
+        )
 
         return NextResponse.json({ error: "Failed to process payment" }, { status: 500 })
       }
     } else {
       // Payment failed
-      await supabase
-        .from("payments")
-        .update({
-          status: "failed",
-          error_message: `Payment failed with status code: ${status_code}`,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order_id)
+      await query(
+        `UPDATE payments 
+         SET status = $1, error_message = $2, updated_at = NOW()
+         WHERE id = $3`,
+        ["failed", `Payment failed with status code: ${status_code}`, order_id]
+      )
 
       console.log(`Payment failed for order ${order_id} with status code ${status_code}`)
       return NextResponse.json({ status: "failed" })

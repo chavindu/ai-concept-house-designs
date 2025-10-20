@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth/auth-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,37 +11,92 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Filter, MoreHorizontal, Eye, EyeOff, Trash2 } from "lucide-react"
 
-export default async function AdminDesignsPage() {
-  const supabase = await createClient()
+interface Design {
+  id: string
+  title: string
+  image_url: string
+  thumbnail_url: string
+  status: string
+  is_public: boolean
+  is_watermarked: boolean
+  created_at: string
+  user_id: string
+  user_name: string
+  user_email: string
+  user_avatar: string
+}
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+export default function AdminDesignsPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [designs, setDesigns] = useState<Design[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
 
-  if (error || !user) {
-    redirect("/auth/login")
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
+
+      if (user.role !== "admin") {
+        router.push("/dashboard")
+        return
+      }
+
+      fetchDesigns()
+    }
+  }, [user, loading, router])
+
+  const fetchDesigns = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/admin/designs', {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setDesigns(data.designs || [])
+      }
+    } catch (error) {
+      console.error('Error fetching designs:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Check if user is admin
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-  if (!profile || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    redirect("/dashboard")
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // Get all designs with user information
-  const { data: designs } = await supabase
-    .from("designs")
-    .select(`
-      *,
-      profiles (
-        full_name,
-        avatar_url,
-        email
-      )
-    `)
-    .order("created_at", { ascending: false })
+  if (!user || user.role !== "admin") {
+    return null // Will redirect
+  }
+
+  const filteredDesigns = designs.filter(design => {
+    const matchesSearch = design.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         design.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         design.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || design.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,11 +148,12 @@ export default async function AdminDesignsPage() {
             designs.map((design) => (
               <Card key={design.id} className="overflow-hidden">
                 <div className="aspect-video bg-muted relative">
-                  {design.image_url ? (
+                  {design.thumbnail_url || design.image_url ? (
                     <img
-                      src={design.image_url || "/placeholder.svg"}
+                      src={design.thumbnail_url || design.image_url || "/placeholder.svg"}
                       alt={design.title || "Generated design"}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
