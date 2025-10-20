@@ -23,7 +23,7 @@ export default function PaymentSuccessPage() {
 
   const fetchPaymentDetails = async () => {
     try {
-      const response = await fetch(`/api/payment/${orderId}`)
+      const response = await fetch(`/api/payment?order_id=${orderId}`)
       if (response.ok) {
         const data = await response.json()
         setPayment(data)
@@ -36,6 +36,9 @@ export default function PaymentSuccessPage() {
       setLoading(false)
     }
   }
+
+  // Check if this is a design package (no points) or points package
+  const isDesignPackage = payment && payment.points === 0 && payment.payment_method === "payhere"
 
   if (loading) {
     return (
@@ -57,28 +60,41 @@ export default function PaymentSuccessPage() {
                 </div>
               </div>
               <CardTitle className="text-2xl text-green-600">Payment Successful!</CardTitle>
-              <CardDescription>Your points have been added to your account</CardDescription>
+              <CardDescription>
+                {isDesignPackage 
+                  ? "Thank you for purchasing the Basic Design Package. One of our team members will get in touch with you shortly."
+                  : "Your points have been added to your account"
+                }
+              </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
               {payment && (
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Coins className="h-5 w-5 text-primary" />
-                    <span className="text-2xl font-bold">{payment.points} Points</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Added to your account</p>
-                  <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
-                    <p>Order ID: {payment.id}</p>
-                    <p>Amount: LKR {payment.amount.toLocaleString()}</p>
-                  </div>
+                  {isDesignPackage ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-lg font-semibold">Basic Design Package</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">LKR {payment.amount.toLocaleString()}</p>
+                      <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
+                        <p>Order ID: {payment.id}</p>
+                        <p>Payment ID: {payment.payment_id}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Coins className="h-5 w-5 text-primary" />
+                      <span className="text-2xl font-bold">{payment.points} Points</span>
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="space-y-3">
                 <Button className="w-full" onClick={() => router.push("/")}>
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Start Generating Designs
+                  {isDesignPackage ? "Back to Home" : "Start Generating Designs"}
                 </Button>
 
                 <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/dashboard")}>
@@ -88,8 +104,17 @@ export default function PaymentSuccessPage() {
               </div>
 
               <div className="text-xs text-muted-foreground">
-                <p>Thank you for your purchase!</p>
-                <p>Your points are ready to use immediately.</p>
+                {isDesignPackage ? (
+                  <>
+                    <p>Thank you for your purchase!</p>
+                    <p>We'll contact you within 24 hours.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>Thank you for your purchase!</p>
+                    <p>Your points are ready to use immediately.</p>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

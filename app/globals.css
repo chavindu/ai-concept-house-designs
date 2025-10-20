@@ -3,6 +3,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* PayHere popup z-index override */
+iframe[src*="payhere"],
+iframe[src*="payhere.lk"],
+[class*="payhere"],
+[id*="payhere"] {
+  z-index: 999999 !important;
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure PayHere overlay is above everything */
+div[style*="z-index: 999999"],
+div[style*="z-index: 99999"] {
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}
+
+/* Lower z-index for package modal when PayHere is active */
+body:has(iframe[src*="payhere"]) [data-radix-portal] {
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
 :root {
   /* Updated theme to match modern AI platform aesthetic with dark theme and purple accents */
   --background: oklch(0.08 0 0);

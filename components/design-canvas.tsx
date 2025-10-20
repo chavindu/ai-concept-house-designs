@@ -2,8 +2,20 @@
 
 import { useDesign } from "@/lib/design-context"
 import { Button } from "@/components/ui/button"
-import { Download, Share2, RotateCcw } from "lucide-react"
+import { 
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import { Download, Share2, RotateCcw, CreditCard, Loader2 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
+import { useAuth } from "@/lib/auth/auth-context"
+import { useRouter } from "next/navigation"
 
 export function DesignCanvas() {
   const { 
@@ -16,8 +28,12 @@ export function DesignCanvas() {
     baseImageForEditing,
     originalFormData
   } = useDesign()
+  const { user } = useAuth()
+  const router = useRouter()
   const [isEditingPerspective, setIsEditingPerspective] = useState(false)
   const [timerText, setTimerText] = useState("0.00")
+  const [processingPayment, setProcessingPayment] = useState(false)
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
   const rafRef = useRef<number | null>(null)
   const startRef = useRef<number | null>(null)
 
@@ -107,6 +123,144 @@ export function DesignCanvas() {
     } finally {
       setIsEditingPerspective(false)
     }
+  }
+
+  const handlePurchaseBasicPackage = async () => {
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
+
+    setProcessingPayment(true)
+    setIsPackageModalOpen(false) // Close the package modal
+
+    try {
+      // Create payment record and get hash from server
+      const response = await fetch("/api/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          package: "basic-design",
+          amount: 10000,
+          userId: user.id,
+          designId: generatedDesign?.designId,
+          userEmail: user.email,
+          userName: user.user_metadata?.full_name,
+          userPhone: user.user_metadata?.phone
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create payment")
+      }
+
+      const paymentData = await response.json()
+
+      // Initialize PayHere payment using official SDK
+      const payment = {
+        sandbox: true, // Set to false in production
+        merchant_id: paymentData.merchantId,
+        return_url: undefined, // Important: set to undefined for popup mode
+        cancel_url: undefined, // Important: set to undefined for popup mode
+        notify_url: `${window.location.origin}/api/payment/webhook`,
+        order_id: paymentData.orderId,
+        items: "Basic Design Package - Detailed Floor Plans & Elevations",
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        hash: paymentData.hash, // Server-generated hash for security
+        first_name: paymentData.firstName,
+        last_name: paymentData.lastName,
+        email: paymentData.email,
+        phone: paymentData.phone,
+        address: "",
+        city: "Colombo",
+        country: "Sri Lanka",
+        delivery_address: "",
+        delivery_city: "Colombo",
+        delivery_country: "Sri Lanka",
+        custom_1: user.id,
+        custom_2: "0", // No points for design packages
+        custom_3: generatedDesign?.designId || "",
+      }
+
+      // Load PayHere script if not already loaded
+      if (!window.payhere) {
+        const script = document.createElement("script")
+        script.src = "https://www.payhere.lk/lib/payhere.js"
+        script.onload = () => {
+          initiatePayment(payment)
+        }
+        document.head.appendChild(script)
+      } else {
+        initiatePayment(payment)
+      }
+    } catch (error) {
+      console.error("Payment initiation error:", error)
+      alert("Failed to initiate payment. Please try again.")
+    } finally {
+      setProcessingPayment(false)
+    }
+  }
+
+  const initiatePayment = (payment: any) => {
+    // Set up PayHere event handlers
+    window.payhere.onCompleted = function onCompleted(orderId: string) {
+      console.log("Payment completed. OrderID:", orderId)
+      // Redirect to success page
+      window.location.href = `/payment/success?order_id=${orderId}`
+    }
+
+    window.payhere.onDismissed = function onDismissed() {
+      console.log("Payment dismissed")
+      // Payment window was closed by user
+      setIsPackageModalOpen(false) // Ensure modal stays closed
+    }
+
+    window.payhere.onError = function onError(error: string) {
+      console.log("Payment error:", error)
+      alert("Payment failed. Please try again.")
+      setIsPackageModalOpen(false) // Ensure modal stays closed
+    }
+
+    // Start the payment
+    window.payhere.startPayment(payment)
+
+    // Increase z-index of PayHere popup after it's created
+    setTimeout(() => {
+      // Close any open modals
+      setIsPackageModalOpen(false)
+      
+      // Find and modify PayHere elements
+      const payhereIframe = document.querySelector('iframe[src*="payhere"]') as HTMLIFrameElement
+      if (payhereIframe) {
+        payhereIframe.style.zIndex = '999999'
+        payhereIframe.style.position = 'fixed'
+        payhereIframe.style.top = '0'
+        payhereIframe.style.left = '0'
+        payhereIframe.style.width = '100%'
+        payhereIframe.style.height = '100%'
+        payhereIframe.style.pointerEvents = 'auto'
+      }
+      
+      // Also check for PayHere modal/overlay elements
+      const payhereModal = document.querySelector('[class*="payhere"], [id*="payhere"]') as HTMLElement
+      if (payhereModal) {
+        payhereModal.style.zIndex = '999999'
+        payhereModal.style.pointerEvents = 'auto'
+      }
+
+      // Disable pointer events on all other modals
+      const allModals = document.querySelectorAll('[data-radix-portal], [role="dialog"]')
+      allModals.forEach(modal => {
+        if (!modal.querySelector('iframe[src*="payhere"]')) {
+          modal.style.pointerEvents = 'none'
+          modal.style.zIndex = '1'
+        }
+      })
+    }, 100)
   }
 
   if (isGenerating) {
@@ -290,6 +444,121 @@ export function DesignCanvas() {
             </>
           )}
         </div>
+
+			{/* Make it real CTA */}
+			{!isTextContent && (
+				<div className="flex justify-center">
+					<Dialog open={isPackageModalOpen} onOpenChange={setIsPackageModalOpen}>
+						<DialogTrigger asChild>
+							<Button size="lg" className="mt-2">
+								Make your dream house real
+							</Button>
+						</DialogTrigger>
+						<DialogContent className="max-w-6xl" style={{ zIndex: 1000 }}>
+							<DialogHeader>
+								<DialogTitle>Make your dream house real</DialogTitle>
+								<DialogDescription>
+									Choose a path to move from concept to construction with vetted professionals and packages.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								{/* Package 1: Direct Payment */}
+								<Card>
+									<CardHeader>
+										<CardTitle>Basic Design Package</CardTitle>
+										<CardDescription>Get detailed floor plans and elevations for your design concept.</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-3">
+											<div className="text-2xl font-bold text-primary">LKR 10,000</div>
+											<ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+												<li>Detailed floor plans</li>
+												<li>Front and side elevations</li>
+												<li>Basic structural guidance</li>
+												<li>Digital delivery within 7 days</li>
+											</ul>
+										</div>
+									</CardContent>
+									<CardFooter>
+										<Button 
+											className="w-full" 
+											onClick={handlePurchaseBasicPackage}
+											disabled={processingPayment}
+										>
+											{processingPayment ? (
+												<>
+													<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+													Processing...
+												</>
+											) : (
+												<>
+													<CreditCard className="h-4 w-4 mr-2" />
+													Purchase
+												</>
+											)}
+										</Button>
+									</CardFooter>
+								</Card>
+
+								{/* Package 2: Calendly Consultation */}
+								<Card>
+									<CardHeader>
+										<CardTitle>Architect Consultation</CardTitle>
+										<CardDescription>Book a 1-hour consultation with a licensed architect to discuss your project.</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-3">
+											<div className="text-lg font-semibold text-muted-foreground">Starting from LKR 5,000</div>
+											<ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+												<li>1-hour video consultation</li>
+												<li>Project feasibility review</li>
+												<li>Budget and timeline guidance</li>
+												<li>Next steps recommendations</li>
+											</ul>
+										</div>
+									</CardContent>
+									<CardFooter>
+										<Button asChild variant="secondary" className="w-full">
+											<a href="https://calendly.com/your-architect" target="_blank" rel="noopener noreferrer" aria-label="Book architect consultation">
+												Book Consultation
+											</a>
+										</Button>
+									</CardFooter>
+								</Card>
+
+								{/* Package 3: Calendly Full Service */}
+								<Card>
+									<CardHeader>
+										<CardTitle>Full Design Service</CardTitle>
+										<CardDescription>Complete architectural design service from concept to construction drawings.</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-3">
+											<div className="text-lg font-semibold text-muted-foreground">Custom Pricing</div>
+											<ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+												<li>Initial consultation call</li>
+												<li>Complete architectural drawings</li>
+												<li>Structural engineering coordination</li>
+												<li>Construction support</li>
+											</ul>
+										</div>
+									</CardContent>
+									<CardFooter>
+										<Button asChild variant="outline" className="w-full">
+											<a href="https://calendly.com/your-architect-full-service" target="_blank" rel="noopener noreferrer" aria-label="Book full design service consultation">
+												Book Consultation
+											</a>
+										</Button>
+									</CardFooter>
+								</Card>
+							</div>
+							<DialogFooter>
+								<Button variant="ghost">Close</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</div>
+			)}
 
         {/* Design Info */}
         <div className="text-center space-y-2">

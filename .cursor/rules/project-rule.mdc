@@ -1,5 +1,5 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
 ## 2. Naming Conventions
 - Use lowercase with dash separators for directories and files (e.g., `components/ui/button.tsx`).
