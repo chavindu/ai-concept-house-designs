@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-// import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Coins, ArrowRight, Home } from "lucide-react"
@@ -12,22 +11,25 @@ export default function PaymentSuccessPage() {
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
   const router = useRouter()
-  const supabase = createClient()
-
   const orderId = searchParams.get("order_id")
 
   useEffect(() => {
     if (orderId) {
       fetchPaymentDetails()
+    } else {
+      setLoading(false)
     }
   }, [orderId])
 
   const fetchPaymentDetails = async () => {
     try {
-      const { data, error } = await supabase.from("payments").select("*").eq("id", orderId).single()
-
-      if (error) throw error
-      setPayment(data)
+      const response = await fetch(`/api/payment/${orderId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPayment(data)
+      } else {
+        console.error("Failed to fetch payment details")
+      }
     } catch (error) {
       console.error("Error fetching payment details:", error)
     } finally {

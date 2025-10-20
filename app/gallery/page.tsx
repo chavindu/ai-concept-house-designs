@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,8 +43,6 @@ export default function GalleryPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [user, setUser] = useState<any>(null)
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchDesigns()
     getCurrentUser()
@@ -56,30 +53,35 @@ export default function GalleryPage() {
   }, [designs, searchQuery, selectedStyle, sortBy])
 
   const getCurrentUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    setUser(user)
+    try {
+      // Check if user is authenticated via API
+      const response = await fetch('/api/user/profile')
+      if (response.ok) {
+        const userData = await response.json()
+        setUser(userData)
+      } else {
+        setUser(null)
+      }
+    } catch (error) {
+      console.error("Error getting current user:", error)
+      setUser(null)
+    }
   }
 
   const fetchDesigns = async () => {
     try {
-      const { data, error } = await supabase
-        .from("designs")
-        .select(`
-          *,
-          profiles (
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      setDesigns(data || [])
+      // Fetch public designs from your API
+      const response = await fetch('/api/gallery/designs')
+      if (response.ok) {
+        const data = await response.json()
+        setDesigns(data.designs || [])
+      } else {
+        console.error("Failed to fetch designs")
+        setDesigns([])
+      }
     } catch (error) {
       console.error("Error fetching designs:", error)
+      setDesigns([])
     } finally {
       setLoading(false)
     }

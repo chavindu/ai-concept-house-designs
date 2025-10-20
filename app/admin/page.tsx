@@ -1,21 +1,29 @@
 import { redirect } from "next/navigation"
-import { verifyAuthFromCookies } from "@/lib/auth/session"
+import { getAccessTokenFromServerCookies } from "@/lib/auth/session"
+import { verifyAccessToken } from "@/lib/auth/jwt"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building, ImageIcon, CreditCard, TrendingUp, AlertTriangle } from "lucide-react"
 import { AIServiceTester } from "@/components/ai-service-tester"
 
 export default async function AdminDashboardPage() {
-  // Check authentication using the new system
-  const authResult = await verifyAuthFromCookies()
-  
-  if (!authResult) {
-    redirect("/auth/login")
-  }
+  // Check authentication using server cookies
+  try {
+    const accessToken = await getAccessTokenFromServerCookies()
+    
+    if (!accessToken) {
+      redirect("/auth/login")
+    }
 
-  // Check if user is admin
-  if (authResult.user.role !== 'admin') {
-    redirect("/dashboard")
+    const payload = verifyAccessToken(accessToken)
+    
+    // Check if user is admin
+    if (payload.role !== 'admin') {
+      redirect("/dashboard")
+    }
+  } catch (error) {
+    console.error('Error verifying auth from cookies:', error)
+    redirect("/auth/login")
   }
 
   // For now, show a simplified admin dashboard

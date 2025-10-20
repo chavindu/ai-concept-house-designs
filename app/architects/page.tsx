@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -63,8 +62,6 @@ export default function ArchitectsPage() {
   const [selectedLocation, setSelectedLocation] = useState("All Locations")
   const [sortBy, setSortBy] = useState("rating")
   const [selectedArchitect, setSelectedArchitect] = useState<Architect | null>(null)
-
-  const supabase = createClient()
 
   useEffect(() => {
     fetchArchitects()

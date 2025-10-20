@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserWithProfile } from '@/lib/database/server'
 import { verifyAuthFromCookies } from '@/lib/auth/session'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Try cookie-based auth first

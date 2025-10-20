@@ -5,47 +5,46 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const userResult = await query(
-      'SELECT role FROM users WHERE id = $1',
-      [userId]
-    )
-
-    if (userResult.rows.length === 0 || userResult.rows[0].role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
-    // Get all designs with user information
+    // Get all public designs with user information
     const designsResult = await query(
       `SELECT 
          d.id,
          d.title,
+         d.prompt,
+         d.style,
          d.image_url,
          d.thumbnail_url,
-         d.status,
-         d.is_public,
-         d.is_watermarked,
          d.created_at,
          d.user_id,
          u.full_name as user_name,
-         u.email as user_email,
          u.avatar_url as user_avatar
        FROM designs d
        LEFT JOIN users u ON d.user_id = u.id
+       WHERE d.is_public = true
        ORDER BY d.created_at DESC`
     )
 
+    // Transform the data to match the expected format
+    const designs = designsResult.rows.map(design => ({
+      id: design.id,
+      title: design.title,
+      prompt: design.prompt,
+      style: design.style,
+      image_url: design.image_url,
+      thumbnail_url: design.thumbnail_url,
+      created_at: design.created_at,
+      user_id: design.user_id,
+      profiles: {
+        full_name: design.user_name,
+        avatar_url: design.user_avatar
+      }
+    }))
+
     return NextResponse.json({
-      designs: designsResult.rows
+      designs
     })
   } catch (error: any) {
-    console.error('Error fetching designs:', error)
+    console.error('Error fetching gallery designs:', error)
     return NextResponse.json({ error: error.message || 'Failed to fetch designs' }, { status: 500 })
   }
 }
