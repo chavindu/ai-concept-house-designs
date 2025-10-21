@@ -55,12 +55,27 @@ export const authOptions: NextAuthOptions = {
           }
         }
       } catch (e) {
+        console.error('JWT callback error:', e)
         // Fallback to existing token values on any error
         token.image = (token as any)?.image || null
       }
+      
+      console.log('JWT callback - token:', {
+        userId: (token as any).userId,
+        email: (token as any).email,
+        role: (token as any).role,
+        hasImage: !!(token as any).image
+      })
+      
       return token
     },
     async session({ session, token }) {
+      console.log('Session callback - token:', {
+        userId: (token as any).userId,
+        email: (token as any).email,
+        role: (token as any).role,
+      })
+      
       if (token.userId) {
         session.user.id = token.userId as string
         session.user.role = (token as any).role as string
@@ -70,6 +85,13 @@ export const authOptions: NextAuthOptions = {
       if (img) {
         session.user.image = img as string
       }
+      
+      console.log('Session callback - session:', {
+        userId: (session.user as any).id,
+        email: session.user.email,
+        role: (session.user as any).role,
+      })
+      
       return session
     },
   },

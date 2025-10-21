@@ -1,44 +1,71 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { verifyAuthFromCookies } from "@/lib/auth/session"
-
-export const dynamic = 'force-dynamic'
+import { NextRequest, NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
+import { getUserWithProfile } from '@/lib/database/server'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication using cookies
-    const authResult = await verifyAuthFromCookies(request)
-    if (!authResult) {
-      return NextResponse.json({ error: "No valid authentication found" }, { status: 401 })
+    console.log('Test API: User profile test request received')
+    
+    // Try NextAuth token first
+    let nextAuthToken = null
+    try {
+      nextAuthToken = await getToken({ 
+        req: request as any, 
+        secret: process.env.NEXTAUTH_SECRET 
+      })
+      console.log('Test API: NextAuth token:', nextAuthToken ? 'found' : 'not found')
+    } catch (error) {
+      console.error('Test API: NextAuth token error:', error)
     }
 
-    const { user } = authResult
-
-    // Get user profile using API call
-    const profileResponse = await fetch(`${request.nextUrl.origin}/api/user/profile`, {
-      headers: {
-        'Cookie': request.headers.get('cookie') || ''
-      }
-    })
-
-    if (!profileResponse.ok) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+    if (!nextAuthToken) {
+      return NextResponse.json(
+        { error: 'No NextAuth token found', details: 'User not authenticated via NextAuth' },
+        { status: 401 }
+      )
     }
 
-    const profile = await profileResponse.json()
+    const userId = (nextAuthToken as any).userId
+    console.log('Test API: User ID from token:', userId)
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'No user ID in token', token: nextAuthToken },
+        { status: 401 }
+      )
+    }
+
+    // Try to get user profile
+    const user = await getUserWithProfile(userId)
+    console.log('Test API: User profile result:', user ? 'found' : 'not found')
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found in database', userId },
+        { status: 404 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
+        full_name: user.full_name,
+        points: user.points,
+        role: user.role,
       },
-      profile: {
-        points: profile.points,
-        daily_points_claimed: profile.daily_points_claimed,
+      token: {
+        userId: (nextAuthToken as any).userId,
+        email: (nextAuthToken as any).email,
+        role: (nextAuthToken as any).role,
       }
     })
   } catch (error) {
-    console.error("Test API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Test API: Error:', error)
+    return NextResponse.json(
+      { error: 'Test failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }

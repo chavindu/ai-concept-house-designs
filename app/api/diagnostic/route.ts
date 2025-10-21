@@ -5,13 +5,31 @@ export async function GET(request: NextRequest) {
   try {
     // Check NextAuth JWT token
     let nextAuthToken = null
+    let nextAuthError = null
     try {
       nextAuthToken = await getToken({ 
         req: request as any, 
         secret: process.env.NEXTAUTH_SECRET 
       })
     } catch (error) {
+      nextAuthError = error instanceof Error ? error.message : 'Unknown error'
       console.error('NextAuth token error:', error)
+    }
+
+    // Also check the raw session token cookie
+    const sessionTokenCookie = request.cookies.get('next-auth.session-token')
+    const sessionTokenValue = sessionTokenCookie?.value
+
+    // Try to decode the token manually to see what's in it
+    let tokenDecoded = null
+    let tokenDecodeError = null
+    if (sessionTokenValue) {
+      try {
+        const jwt = require('jsonwebtoken')
+        tokenDecoded = jwt.decode(sessionTokenValue)
+      } catch (error) {
+        tokenDecodeError = error instanceof Error ? error.message : 'Unknown error'
+      }
     }
 
     const diagnostics = {
@@ -23,6 +41,7 @@ export async function GET(request: NextRequest) {
         hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
         hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
         hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        nextAuthSecretLength: process.env.NEXTAUTH_SECRET?.length || 0,
       },
       request: {
         url: request.url,
@@ -38,6 +57,11 @@ export async function GET(request: NextRequest) {
       },
       nextAuth: {
         token: nextAuthToken ? 'present' : 'missing',
+        tokenError: nextAuthError,
+        sessionTokenLength: sessionTokenValue ? sessionTokenValue.length : 0,
+        sessionTokenPreview: sessionTokenValue ? sessionTokenValue.substring(0, 50) + '...' : null,
+        tokenDecoded: tokenDecoded,
+        tokenDecodeError: tokenDecodeError,
         tokenDetails: nextAuthToken ? {
           userId: (nextAuthToken as any).userId,
           email: (nextAuthToken as any).email,
