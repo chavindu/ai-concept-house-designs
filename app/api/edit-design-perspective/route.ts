@@ -3,6 +3,9 @@ import { editArchitecturalDesignPerspective } from "@/lib/ai-service"
 import { generatePrompt } from "@/lib/prompt-generator"
 import { query } from "@/lib/database/client"
 import { deductPoints } from "@/lib/points"
+import { verifyAuthFromCookies } from "@/lib/auth/session"
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/nextauth'
 
 export async function POST(request: NextRequest) {
   console.log("=".repeat(80))
@@ -38,17 +41,47 @@ export async function POST(request: NextRequest) {
 
     // Verify authentication
     console.log("\n🔐 Verifying authentication...")
-    const userId = request.headers.get('x-user-id')
+    
+    // Try NextAuth session first (preferred method)
+    const session = await getServerSession(authOptions)
+    console.log("API: NextAuth session:", session ? 'found' : 'not found')
+    
+    let userId = null
+    let authMethod = 'none'
+    
+    if (session?.user?.id) {
+      userId = session.user.id
+      authMethod = 'nextauth'
+      console.log("API: Using NextAuth session, user ID:", userId)
+    } else {
+      // Fallback: Try cookie-based auth
+      const auth = await verifyAuthFromCookies(request)
+      console.log("API: Auth from cookies:", auth ? 'success' : 'failed')
+      if (auth?.user?.id) {
+        userId = auth.user.id
+        authMethod = 'cookies'
+        console.log("API: Using cookie auth, user ID:", userId)
+      }
+    }
+
+    // Check header fallback
+    if (!userId) {
+      userId = request.headers.get('x-user-id')
+      if (userId) {
+        authMethod = 'header'
+        console.log("API: Using header auth, user ID:", userId)
+      }
+    }
     
     if (!userId) {
-      console.log("❌ No user ID in headers")
+      console.log("❌ No user ID found")
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       )
     }
 
-    console.log("✅ User authenticated:", userId)
+    console.log("✅ User authenticated:", userId, "Method:", authMethod)
 
     // Check user points
     console.log("\n💰 Checking user points...")
