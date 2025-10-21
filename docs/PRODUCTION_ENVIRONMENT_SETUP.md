@@ -22,7 +22,8 @@ NEXTAUTH_URL=https://yourdomain.com
 NEXTAUTH_SECRET=your_nextauth_secret_here_minimum_32_characters
 
 # Cookie Domain (optional - only if you have subdomains)
-COOKIE_DOMAIN=.yourdomain.com
+# IMPORTANT: Use domain only, not full URL (e.g., ".bitlab.lk" not "https://aibuilder.bitlab.lk")
+COOKIE_DOMAIN=.bitlab.lk
 
 # JWT Configuration
 JWT_SECRET=your_jwt_secret_key_here_minimum_32_characters

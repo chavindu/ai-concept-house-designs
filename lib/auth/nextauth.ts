@@ -92,7 +92,8 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https'),
-        domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
+        domain: process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN ? 
+          process.env.COOKIE_DOMAIN.replace(/^https?:\/\//, '').split('/')[0] : undefined,
       }
     }
   },

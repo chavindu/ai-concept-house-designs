@@ -10,7 +10,8 @@ const COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https'),
   sameSite: 'lax' as const,
   path: '/',
-  domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
+  domain: process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN ? 
+    process.env.COOKIE_DOMAIN.replace(/^https?:\/\//, '').split('/')[0] : undefined,
 }
 
 const ACCESS_TOKEN_COOKIE_NAME = 'access_token'
