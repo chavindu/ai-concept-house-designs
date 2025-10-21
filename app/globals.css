@@ -154,14 +154,14 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
   -webkit-user-select: none;
   -ms-user-select: none;
   -webkit-appearance: none;
-  background-color: #131314;
+  background-color: #f2f2f2;
   background-image: none;
-  border: 1px solid #747775;
-  -webkit-border-radius: 20px;
-  border-radius: 20px;
+  border: none;
+  -webkit-border-radius: 4px;
+  border-radius: 4px;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  color: #e3e3e3;
+  color: #1f1f1f;
   cursor: pointer;
   font-family: 'Roboto', arial, sans-serif;
   font-size: 14px;
@@ -176,14 +176,14 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
   transition: background-color .218s, border-color .218s, box-shadow .218s;
   vertical-align: middle;
   white-space: nowrap;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 100% !important;
-  border-color: #8e918f;
+  width: 100%;
+  max-width: 100%;
+  min-width: 100%;
 }
 
 .gsi-material-button .gsi-material-button-icon {
   height: 20px;
+  margin-right: 12px;
   min-width: 20px;
   width: 20px;
 }
@@ -200,7 +200,6 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
   justify-content: center;
   position: relative;
   width: 100%;
-  gap: 12px;
 }
 
 .gsi-material-button .gsi-material-button-contents {
@@ -226,12 +225,11 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
 
 .gsi-material-button:disabled {
   cursor: default;
-  background-color: #13131461;
-  border-color: #8e918f1f;
+  background-color: #ffffff61;
 }
 
 .gsi-material-button:disabled .gsi-material-button-state {
-  background-color: #e3e3e31f;
+  background-color: #1f1f1f1f;
 }
 
 .gsi-material-button:disabled .gsi-material-button-contents {
@@ -244,7 +242,7 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
 
 .gsi-material-button:not(:disabled):active .gsi-material-button-state, 
 .gsi-material-button:not(:disabled):focus .gsi-material-button-state {
-  background-color: white;
+  background-color: #001d35;
   opacity: 12%;
 }
 
@@ -254,6 +252,6 @@ body:has(iframe[src*="payhere"]) [data-radix-portal] {
 }
 
 .gsi-material-button:not(:disabled):hover .gsi-material-button-state {
-  background-color: white;
+  background-color: #001d35;
   opacity: 8%;
 }
