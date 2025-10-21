@@ -7,10 +7,16 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     console.log('API: User profile request received')
+    console.log('API: Request URL:', request.url)
+    console.log('API: Request headers:', Object.fromEntries(request.headers.entries()))
+    console.log('API: Cookies:', Object.fromEntries(request.cookies.getAll().map(c => [c.name, c.value ? 'present' : 'missing'])))
     
     // Try cookie-based auth first
     const auth = await verifyAuthFromCookies(request)
     console.log('API: Auth from cookies:', auth ? 'success' : 'failed')
+    if (auth) {
+      console.log('API: Auth user ID:', auth.user.id)
+    }
 
     let userId = request.headers.get('x-user-id')
     if (!userId && auth?.user?.id) {

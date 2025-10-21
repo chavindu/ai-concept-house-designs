@@ -7,9 +7,10 @@ import { getToken } from 'next-auth/jwt'
 // Cookie configuration
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https'),
   sameSite: 'lax' as const,
   path: '/',
+  domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
 }
 
 const ACCESS_TOKEN_COOKIE_NAME = 'access_token'
