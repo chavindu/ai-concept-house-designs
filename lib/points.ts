@@ -103,8 +103,9 @@ export async function claimDailyPoints(userId: string) {
 
       const profile = profileResult.rows[0]
       const today = new Date().toISOString().split('T')[0]
+      const lastClaimed = profile.daily_points_claimed ? new Date(profile.daily_points_claimed).toISOString().split('T')[0] : null
       
-      if (profile.daily_points_claimed === today) {
+      if (lastClaimed === today) {
         throw new Error('Daily points already claimed today')
       }
 

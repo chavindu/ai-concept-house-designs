@@ -47,7 +47,8 @@ export function Header() {
         
         // Check if user can claim daily points
         const today = new Date().toISOString().split('T')[0]
-        setCanClaimDaily(data.daily_points_claimed !== today)
+        const lastClaimed = data.daily_points_claimed ? new Date(data.daily_points_claimed).toISOString().split('T')[0] : null
+        setCanClaimDaily(lastClaimed !== today)
       } else {
         console.error('Header: Failed to fetch user profile:', response.status, response.statusText)
       }
