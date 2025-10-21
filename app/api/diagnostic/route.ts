@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check NextAuth JWT token
+    let nextAuthToken = null
+    try {
+      nextAuthToken = await getToken({ 
+        req: request as any, 
+        secret: process.env.NEXTAUTH_SECRET 
+      })
+    } catch (error) {
+      console.error('NextAuth token error:', error)
+    }
+
     const diagnostics = {
       environment: {
         NODE_ENV: process.env.NODE_ENV,
@@ -23,6 +35,16 @@ export async function GET(request: NextRequest) {
         refreshToken: request.cookies.get('refresh_token')?.value ? 'present' : 'missing',
         nextAuthSession: request.cookies.get('next-auth.session-token')?.value ? 'present' : 'missing',
         allCookies: Object.fromEntries(request.cookies.getAll().map(c => [c.name, c.value ? 'present' : 'missing'])),
+      },
+      nextAuth: {
+        token: nextAuthToken ? 'present' : 'missing',
+        tokenDetails: nextAuthToken ? {
+          userId: (nextAuthToken as any).userId,
+          email: (nextAuthToken as any).email,
+          role: (nextAuthToken as any).role,
+          exp: (nextAuthToken as any).exp,
+          iat: (nextAuthToken as any).iat,
+        } : null,
       },
       timestamp: new Date().toISOString(),
     }
