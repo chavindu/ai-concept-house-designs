@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Building, ImageIcon, CreditCard, TrendingUp, AlertTriangle } from "lucide-react"
 import { AIServiceTester } from "@/components/ai-service-tester"
 
+// Force dynamic rendering since this page uses cookies
+export const dynamic = 'force-dynamic'
+
 export default async function AdminDashboardPage() {
   // Check authentication using server cookies
   try {
