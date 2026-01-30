@@ -98,7 +98,7 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
  */
 async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   try {
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password?token=${token}`
+    const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${token}`
     
     const emailContent = {
       to: email,

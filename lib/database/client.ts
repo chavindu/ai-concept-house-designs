@@ -1,19 +1,24 @@
-import { Pool, PoolClient, QueryResult } from 'pg'
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg'
 
 // Database connection pool
 let pool: Pool | null = null
 
 export function getPool(): Pool {
   if (!pool) {
+    // Configure SSL only if PGSSL environment variable is set
+    const sslConfig = process.env.PGSSL === 'true' ? {
+      ssl: {
+        rejectUnauthorized: false
+      }
+    } : {};
+
     pool = new Pool({
       host: process.env.PGHOST,
       port: parseInt(process.env.PGPORT || '5432'),
       database: process.env.PGDATABASE,
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
-      ssl: {
-        rejectUnauthorized: false, // Required for Azure PostgreSQL
-      },
+      ...sslConfig,
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
       connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
@@ -29,7 +34,7 @@ export function getPool(): Pool {
 }
 
 // Query helper function with error handling
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {

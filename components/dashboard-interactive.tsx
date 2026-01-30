@@ -6,10 +6,10 @@ import { Download, Share2, Eye } from "lucide-react"
 interface Design {
   id: string
   title: string
-  prompt: string
+  prompt?: string
   image_url?: string
   thumbnail_url?: string
-  is_public: boolean
+  is_public?: boolean
 }
 
 interface DashboardInteractiveProps {

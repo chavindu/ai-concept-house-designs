@@ -44,14 +44,14 @@ export async function generateArchitecturalDesign(
     const genAI = new GoogleGenerativeAI(apiKey)
     console.log("✅ GoogleGenerativeAI instance created")
     
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
-    console.log("✅ Model instance created: gemini-2.5-flash-image-preview")
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" })
+    console.log("✅ Model instance created: gemini-2.5-flash-image")
     
     // STEP 4: Generate Image
     console.log("\n" + "=".repeat(80))
     console.log("🖼️ STEP 4: Generating Architectural Image")
     console.log("=".repeat(80))
-    console.log("ℹ️ Using gemini-2.5-flash-image-preview for image generation")
+    console.log("ℹ️ Using gemini-2.5-flash-image for image generation")
     
     let imageResult
     // Retry policy: up to 3 attempts, exponential backoff: 0s, 1s, 2s
@@ -167,8 +167,8 @@ async function generateArchitecturalImage(prompt: string): Promise<{imageUrl: st
     console.log("✅ GoogleGenerativeAI instance created")
     
     console.log("🤖 Getting model instance...")
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
-    console.log("✅ Model instance created: gemini-2.5-flash-image-preview")
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" })
+    console.log("✅ Model instance created: gemini-2.5-flash-image")
     
     // Prepare the prompt for image generation
     const imagePrompt = `Create an image: ${prompt}`
@@ -363,9 +363,9 @@ export async function editArchitecturalDesignPerspective(
     }
     
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" })
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" })
     
-    console.log("✅ Model instance created: gemini-2.5-flash-image-preview")
+    console.log("✅ Model instance created: gemini-2.5-flash-image")
     
     // Retry policy: up to 3 attempts
     const maxAttempts = 3

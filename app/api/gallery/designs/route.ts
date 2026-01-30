@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('API: Gallery designs request received')
+    
     // Get all public designs with user information
     const designsResult = await query(
       `SELECT 
@@ -16,13 +18,16 @@ export async function GET(request: NextRequest) {
          d.thumbnail_url,
          d.created_at,
          d.user_id,
+         d.status,
          u.full_name as user_name,
          u.avatar_url as user_avatar
        FROM designs d
        LEFT JOIN users u ON d.user_id = u.id
-       WHERE d.is_public = true
+       WHERE d.is_public = true AND d.status = 'completed'
        ORDER BY d.created_at DESC`
     )
+
+    console.log('API: Found public designs:', designsResult.rows.length)
 
     // Transform the data to match the expected format
     const designs = designsResult.rows.map(design => ({

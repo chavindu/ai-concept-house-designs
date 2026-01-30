@@ -105,6 +105,44 @@ export async function ensureUserProfile(userId: string): Promise<void> {
   }
 }
 
+// OAuth Account operations
+export async function createOAuthAccount(data: {
+  user_id: string
+  provider: string
+  provider_account_id: string
+  access_token?: string
+  refresh_token?: string
+  expires_at?: number
+  token_type?: string
+  scope?: string
+  id_token?: string
+}): Promise<void> {
+  await query(
+    `INSERT INTO accounts (
+      user_id, provider, provider_account_id, type, 
+      access_token, refresh_token, expires_at, 
+      token_type, scope, id_token
+    ) VALUES ($1, $2, $3, 'oauth', $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (provider, provider_account_id) 
+    DO UPDATE SET 
+      access_token = EXCLUDED.access_token,
+      refresh_token = EXCLUDED.refresh_token,
+      expires_at = EXCLUDED.expires_at,
+      updated_at = NOW()`,
+    [
+      data.user_id,
+      data.provider,
+      data.provider_account_id,
+      data.access_token,
+      data.refresh_token,
+      data.expires_at || null,
+      data.token_type || 'Bearer',
+      data.scope,
+      data.id_token
+    ]
+  )
+}
+
 export async function getUserWithProfile(userId: string): Promise<UserWithProfile | null> {
   // Ensure user has a profile
   await ensureUserProfile(userId)

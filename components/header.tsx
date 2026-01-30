@@ -23,6 +23,7 @@ export function Header() {
   const { openModal: openPricingModal } = usePricingModal()
   const [language, setLanguage] = useState<"EN" | "SI">("EN")
   const [userPoints, setUserPoints] = useState<number>(0)
+  const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined)
   const [canClaimDaily, setCanClaimDaily] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const router = useRouter()
@@ -30,6 +31,8 @@ export function Header() {
 
   useEffect(() => {
     if (user) {
+      console.log('Header: Current user object:', user)
+      console.log('Header: user.avatar_url:', user.avatar_url)
       fetchUserPoints()
     }
   }, [user])
@@ -43,7 +46,9 @@ export function Header() {
       if (response.ok) {
         const data = await response.json()
         console.log('Header: Fetched user profile data:', data)
+        console.log('Header: Setting userAvatar to:', data.avatar_url)
         setUserPoints(data.points || 0)
+        setUserAvatar(data.avatar_url) // Store avatar from API
         
         // Check if user can claim daily points
         const today = new Date().toISOString().split('T')[0]
@@ -99,7 +104,7 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Left: Language Switch */}
         <div className="flex items-center">
@@ -141,7 +146,11 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar_url} alt={user.full_name || 'Profile'} />
+                      {(() => {
+                        const avatarSrc = userAvatar || user.avatar_url
+                        console.log('Header: Rendering avatar with src:', avatarSrc, '(userAvatar:', userAvatar, ', user.avatar_url:', user.avatar_url, ')')
+                        return <AvatarImage src={avatarSrc} alt={user.full_name || 'Profile'} referrerPolicy="no-referrer" />
+                      })()}
                       <AvatarFallback>
                         {user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'U'}
                       </AvatarFallback>

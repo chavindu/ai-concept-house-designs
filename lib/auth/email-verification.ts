@@ -66,7 +66,7 @@ export async function verifyEmailToken(token: string): Promise<string | null> {
  */
 async function sendVerificationEmail(email: string, token: string): Promise<void> {
   try {
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify-email?token=${token}`
+    const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}`
     
     const emailContent = {
       to: email,

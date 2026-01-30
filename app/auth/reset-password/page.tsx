@@ -118,8 +118,8 @@ export default function ResetPasswordPage() {
             </form>
             <div className="mt-6 text-center text-sm">
               Remember your password?{" "}
-              <Link href="/auth/login" className="text-primary hover:underline">
-                Sign in here
+              <Link href="/" className="text-primary hover:underline">
+                Back to Home
               </Link>
             </div>
           </CardContent>

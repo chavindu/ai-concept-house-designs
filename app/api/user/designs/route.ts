@@ -48,16 +48,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // Get user designs
+    // Get user designs (including all statuses for dashboard viewing)
     const designsResult = await query(
       `SELECT id, title, image_url, thumbnail_url, status, created_at, is_watermarked, perspective, prompt, style, building_type, is_public
        FROM designs 
-       WHERE user_id = $1 
+       WHERE user_id = $1
        ORDER BY created_at DESC`,
       [userId]
     )
 
     console.log('API: Found designs:', designsResult.rows.length)
+    console.log('API: Sample design data:', designsResult.rows[0] || 'No designs found')
 
     return NextResponse.json({
       designs: designsResult.rows,

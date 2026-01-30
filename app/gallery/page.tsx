@@ -15,6 +15,7 @@ interface Design {
   prompt: string
   style: string
   image_url: string
+  thumbnail_url?: string
   created_at: string
   user_id: string
   profiles: {
@@ -255,7 +256,7 @@ export default function GalleryPage() {
                 key={design.id}
                 className={`overflow-hidden hover:shadow-lg transition-shadow ${viewMode === "list" ? "flex" : ""}`}
               >
-                <div className={`${viewMode === "list" ? "w-64 flex-shrink-0" : "aspect-video"} bg-muted`}>
+                <div className={`${viewMode === "list" ? "w-64 shrink-0" : "aspect-video"} bg-muted`}>
                   {design.thumbnail_url || design.image_url ? (
                     <img
                       src={design.thumbnail_url || design.image_url || "/placeholder.svg"}

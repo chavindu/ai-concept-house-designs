@@ -108,8 +108,8 @@ export default function VerifyEmailPage() {
             )}
             
             <div className="mt-6 text-center text-sm">
-              <Link href="/auth/login" className="text-primary hover:underline">
-                Back to Sign In
+              <Link href="/" className="text-primary hover:underline">
+                Back to Home
               </Link>
             </div>
           </CardContent>

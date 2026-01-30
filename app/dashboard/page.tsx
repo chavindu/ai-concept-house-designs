@@ -61,13 +61,18 @@ export default function DashboardPage() {
     try {
       setIsLoading(true)
       
+      console.log('Dashboard: Fetching user data...')
+      
       // Fetch user profile and designs
       const response = await fetch('/api/user/profile', {
         credentials: 'include'
       })
       
+      console.log('Dashboard: Profile response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Dashboard: Profile data:', data)
         setProfile(data)
         
         // Fetch user designs
@@ -75,10 +80,25 @@ export default function DashboardPage() {
           credentials: 'include'
         })
         
+        console.log('Dashboard: Designs response status:', designsResponse.status)
+        
         if (designsResponse.ok) {
           const designsData = await designsResponse.json()
           console.log('Dashboard: Designs data received:', designsData.designs)
+          console.log('Dashboard: Number of designs:', designsData.designs?.length || 0)
+          console.log('Dashboard: Auth method:', designsData.authMethod)
+          if (designsData.designs && designsData.designs.length > 0) {
+            console.log('Dashboard: Sample design image URLs:', {
+              image_url: designsData.designs[0].image_url,
+              thumbnail_url: designsData.designs[0].thumbnail_url,
+              status: designsData.designs[0].status
+            })
+          }
           setDesigns(designsData.designs || [])
+        } else {
+          console.error('Dashboard: Failed to fetch designs, status:', designsResponse.status)
+          const errorData = await designsResponse.json()
+          console.error('Dashboard: Error details:', errorData)
         }
         
         // Fetch transactions
@@ -233,7 +253,7 @@ export default function DashboardPage() {
                     <div className="flex flex-col md:flex-row">
                       {/* Thumbnail Preview */}
                       <div 
-                        className="md:w-64 md:h-48 w-full h-48 bg-muted flex-shrink-0 cursor-pointer group relative overflow-hidden rounded-l-lg"
+                        className="md:w-64 md:h-48 w-full h-48 bg-muted shrink-0 cursor-pointer group relative overflow-hidden rounded-l-lg"
                         onClick={() => {
                           console.log('Thumbnail clicked, design:', design)
                           if (design.image_url) {
@@ -246,16 +266,36 @@ export default function DashboardPage() {
                         }}
                       >
                         {(design.thumbnail_url || design.image_url) ? (
-                          <img
-                            src={design.thumbnail_url || design.image_url}
-                            alt={design.title || "Generated design"}
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                            onError={(e) => {
-                              console.log('Image failed to load:', e.target.src)
-                              // Fallback to placeholder if image fails to load
-                              e.target.src = "/placeholder.svg"
-                            }}
-                          />
+                          <>
+                            <img
+                              src={design.thumbnail_url || design.image_url}
+                              alt={design.title || "Generated design"}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              onLoad={(e) => {
+                                console.log('Image loaded successfully:', design.id)
+                              }}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                console.error('Image failed to load:', {
+                                  designId: design.id,
+                                  urlLength: target.src.length,
+                                  urlPreview: target.src.substring(0, 100)
+                                })
+                                // Check if it's an error message (data:text/plain)
+                                if (target.src.startsWith('data:text/')) {
+                                  // Display error message instead
+                                  target.style.display = 'none'
+                                  const parent = target.parentElement
+                                  if (parent) {
+                                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center p-4 text-center"><div class="text-sm text-muted-foreground"><p class="font-semibold mb-2">⚠️ Generation Failed</p><p class="text-xs">This design failed to generate properly</p></div></div>'
+                                  }
+                                } else {
+                                  // Fallback to placeholder for other errors
+                                  target.src = "/placeholder.svg"
+                                }
+                              }}
+                            />
+                          </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             <Sparkles className="h-8 w-8" />

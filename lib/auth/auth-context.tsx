@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession, signOut, signIn } from 'next-auth/react'
 
 export interface User {
 	id: string
@@ -54,6 +54,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		}
 
 		if (session?.user) {
+			console.log('Auth Context: Full session object:', session)
+			console.log('Auth Context: session.user:', session.user)
+			console.log('Auth Context: session.user.image:', session.user.image)
+			console.log('Auth Context: (session.user as any).image:', (session.user as any).image)
+			
 			const nextAuthUser: User = {
 				id: session.user.id || '',
 				email: session.user.email || '',
@@ -62,6 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				email_verified: true,
 				role: (session.user as any).role || 'user',
 			}
+			console.log('Auth Context: Created user object:', nextAuthUser)
 			setUser(nextAuthUser)
 		} else {
 			setUser(null)
@@ -76,23 +82,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 	const login = useCallback(async (email: string, password: string) => {
 		try {
-			const response = await fetch('/api/auth/login', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				credentials: 'include',
-				body: JSON.stringify({ email, password }),
+			const result = await signIn('credentials', {
+				email,
+				password,
+				redirect: false,
 			})
 
-			const data = await response.json()
-
-			if (response.ok) {
-				setUser(data.user)
-				return { success: true }
-			} else {
-				return { success: false, error: data.error }
+			if (result?.error) {
+				return { success: false, error: result.error }
 			}
+
+			if (result?.ok) {
+				return { success: true }
+			}
+
+			return { success: false, error: 'Login failed. Please try again.' }
 		} catch (error) {
 			console.error('Login error:', error)
 			return { success: false, error: 'Login failed. Please try again.' }
